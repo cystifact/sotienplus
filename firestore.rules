@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All writes go through tRPC (server-side Admin SDK)
+    // Firestore rules only need to allow reads for authenticated users
+
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /cash_records/{recordId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /customers/{customerId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /collectors/{collectorId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /settings/{settingId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}
