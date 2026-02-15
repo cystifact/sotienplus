@@ -1,12 +1,20 @@
 {
-  "name": "soghitien",
+  "name": "sotienplus",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3009",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy:build": "docker build -t sotienplus .",
+    "deploy:tag": "docker tag sotienplus asia-southeast1-docker.pkg.dev/sotienplus-98691/cloud-run/sotienplus",
+    "deploy:push": "docker push asia-southeast1-docker.pkg.dev/sotienplus-98691/cloud-run/sotienplus",
+    "deploy:run": "gcloud run deploy sotienplus --image asia-southeast1-docker.pkg.dev/sotienplus-98691/cloud-run/sotienplus --region asia-southeast1 --platform managed --allow-unauthenticated",
+    "deploy": "npm run deploy:build && npm run deploy:tag && npm run deploy:push && npm run deploy:run",
+    "deploy:functions": "cd functions && npm run deploy",
+    "deploy:firestore": "firebase deploy --only firestore",
+    "deploy:hosting": "firebase deploy --only hosting"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -51,6 +59,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   },

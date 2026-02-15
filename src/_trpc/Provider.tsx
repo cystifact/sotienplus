@@ -36,6 +36,17 @@ export default function TRPCProvider({
         httpBatchLink({
           url: '/api/trpc',
           maxURLLength: 2000,
+          async headers() {
+            if (user) {
+              try {
+                const token = await user.getIdToken();
+                return { Authorization: `Bearer ${token}` };
+              } catch {
+                return {};
+              }
+            }
+            return {};
+          },
         }),
       ],
     });

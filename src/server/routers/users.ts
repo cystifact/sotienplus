@@ -1,26 +1,32 @@
 import { z } from 'zod';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, protectedProcedure, requirePermission } from '../trpc';
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 import { TRPCError } from '@trpc/server';
 import { FieldValue } from 'firebase-admin/firestore';
 
-const SHADOW_EMAIL_DOMAIN = '@soghitien.local';
+const SHADOW_EMAIL_DOMAIN = '@sotienplus.local';
 
 export const usersRouter = router({
   getCurrentUser: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.userData;
+    return {
+      ...ctx.userData,
+      permissions: ctx.permissions,
+    };
   }),
 
-  list: adminProcedure.query(async () => {
-    const db = getAdminDb();
-    const snapshot = await db.collection('users').orderBy('displayName').get();
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-  }),
+  list: protectedProcedure
+    .use(requirePermission('users', 'view'))
+    .query(async () => {
+      const db = getAdminDb();
+      const snapshot = await db.collection('users').orderBy('displayName').get();
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    }),
 
-  getById: adminProcedure
+  getById: protectedProcedure
+    .use(requirePermission('users', 'view'))
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const db = getAdminDb();
@@ -31,26 +37,41 @@ export const usersRouter = router({
       return { id: doc.id, ...doc.data() };
     }),
 
-  create: adminProcedure
+  create: protectedProcedure
+    .use(requirePermission('users', 'create'))
     .input(
       z.object({
-        username: z.string().min(3).max(30),
+        username: z.string().min(3).max(30).optional(),
+        email: z.string().email().optional(),
         displayName: z.string().min(1).max(100),
         password: z.string().min(6),
-        role: z.enum(['admin', 'staff']),
+        role: z.enum(['admin', 'manager', 'staff']),
       })
     )
     .mutation(async ({ input }) => {
       const adminAuth = getAdminAuth();
       const db = getAdminDb();
-      const email = `${input.username}${SHADOW_EMAIL_DOMAIN}`;
 
-      // Check if username already exists
+      // Admin requires real email, staff/manager requires username
+      if (input.role === 'admin' && !input.email) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Admin cần có email thực' });
+      }
+      if (input.role !== 'admin' && !input.username) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Nhân viên cần có username' });
+      }
+
+      const email = input.role === 'admin' && input.email
+        ? input.email
+        : `${input.username}${SHADOW_EMAIL_DOMAIN}`;
+
+      const username = input.username || input.email?.split('@')[0] || '';
+
+      // Check if email/username already exists
       try {
         await adminAuth.getUserByEmail(email);
         throw new TRPCError({
           code: 'CONFLICT',
-          message: 'Username đã tồn tại',
+          message: input.role === 'admin' ? 'Email đã tồn tại' : 'Username đã tồn tại',
         });
       } catch (error: any) {
         if (error.code !== 'auth/user-not-found' && error instanceof TRPCError) {
@@ -67,7 +88,7 @@ export const usersRouter = router({
       const now = FieldValue.serverTimestamp();
       await db.collection('users').doc(userRecord.uid).set({
         email,
-        username: input.username,
+        username,
         displayName: input.displayName,
         role: input.role,
         isActive: true,
@@ -78,12 +99,13 @@ export const usersRouter = router({
       return { id: userRecord.uid };
     }),
 
-  update: adminProcedure
+  update: protectedProcedure
+    .use(requirePermission('users', 'edit'))
     .input(
       z.object({
         id: z.string(),
         displayName: z.string().min(1).max(100).optional(),
-        role: z.enum(['admin', 'staff']).optional(),
+        role: z.enum(['admin', 'manager', 'staff']).optional(),
         isActive: z.boolean().optional(),
       })
     )
@@ -107,6 +129,8 @@ export const usersRouter = router({
       }
       if (updateData.role !== undefined) {
         firestoreUpdate.role = updateData.role;
+        // Clear permission overrides when role changes
+        firestoreUpdate.permissions = FieldValue.delete();
       }
       if (updateData.isActive !== undefined) {
         firestoreUpdate.isActive = updateData.isActive;
@@ -117,7 +141,8 @@ export const usersRouter = router({
       return { success: true };
     }),
 
-  updatePassword: adminProcedure
+  updatePassword: protectedProcedure
+    .use(requirePermission('users', 'edit'))
     .input(
       z.object({
         id: z.string(),
@@ -130,7 +155,48 @@ export const usersRouter = router({
       return { success: true };
     }),
 
-  delete: adminProcedure
+  updatePermissions: protectedProcedure
+    .use(requirePermission('users', 'edit'))
+    .input(
+      z.object({
+        id: z.string(),
+        permissions: z.array(
+          z.object({
+            module: z.string(),
+            action: z.string(),
+            granted: z.boolean(),
+            label: z.string(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Only admin can change permissions
+      if (ctx.userData!.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Chỉ admin mới có thể thay đổi quyền' });
+      }
+
+      // Cannot edit own permissions
+      if (input.id === ctx.userData!.id) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Không thể chỉnh sửa quyền của chính mình' });
+      }
+
+      const db = getAdminDb();
+      const doc = await db.collection('users').doc(input.id).get();
+      if (!doc.exists) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'User không tồn tại' });
+      }
+
+      await db.collection('users').doc(input.id).update({
+        permissions: input.permissions.length > 0 ? input.permissions : FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      return { success: true };
+    }),
+
+  delete: protectedProcedure
+    .use(requirePermission('users', 'delete'))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       const db = getAdminDb();

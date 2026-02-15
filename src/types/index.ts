@@ -1,9 +1,12 @@
+import type { Permission } from '@/lib/permissions-config';
+
 export interface User {
   id: string;
   email: string;
   username?: string;
   displayName: string;
-  role: 'admin' | 'staff';
+  role: 'admin' | 'manager' | 'staff';
+  permissions?: Permission[];
   isActive: boolean;
   createdAt: FirebaseFirestore.Timestamp;
   updatedAt: FirebaseFirestore.Timestamp;
@@ -44,9 +47,17 @@ export interface CashRecord {
   notes?: string;
   checkActualReceived: boolean;
   checkKiotVietEntered: boolean;
-  rpaStatus?: 'pending' | 'success' | 'failed';
+  rpaStatus?: 'pending' | 'processing' | 'success' | 'failed';
   rpaError?: string;
   rpaSyncAt?: FirebaseFirestore.Timestamp;
+  rpaQueuedAt?: FirebaseFirestore.Timestamp;
+  rpaRetryCount?: number;
+  rpaProcessingBy?: string;
+  rpaProcessingAt?: FirebaseFirestore.Timestamp;
+  rpaOriginalAmount?: number;
+  rpaOriginalCustomerName?: string;
+  rpaNeedsKiotVietCorrection?: boolean;
+  rpaKiotVietCorrected?: boolean;
   createdBy: string;
   createdByName: string;
   createdAt: FirebaseFirestore.Timestamp;

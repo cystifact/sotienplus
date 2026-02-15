@@ -1,12 +1,14 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import type { DecodedIdToken } from 'firebase-admin/auth';
+import { Permission, UserRole, mergePermissions } from '@/lib/permissions-config';
+import { hasPermission } from './lib/permission-utils';
 
 export interface UserData {
   id: string;
   email: string;
   displayName: string;
-  role: 'admin' | 'staff';
+  role: UserRole;
   isActive: boolean;
 }
 
@@ -17,6 +19,7 @@ interface CreateContextOptions {
 export interface TRPCContext {
   user: DecodedIdToken | null;
   userData: UserData | null;
+  permissions: Permission[];
 }
 
 export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRPCContext> => {
@@ -56,6 +59,7 @@ export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRP
   return {
     user,
     userData: null,
+    permissions: [],
   };
 };
 
@@ -85,15 +89,22 @@ const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
     id: userDoc.id,
     email: data.email,
     displayName: data.displayName,
-    role: data.role,
+    role: data.role as UserRole,
     isActive: data.isActive,
   };
+
+  // Resolve permissions from same doc read (no extra Firestore call)
+  const permissions = mergePermissions(
+    data.role as UserRole,
+    data.permissions || [],
+  );
 
   return next({
     ctx: {
       ...ctx,
       user: ctx.user,
       userData,
+      permissions,
     },
   });
 });
@@ -107,3 +118,20 @@ const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {
 
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
 export const adminProcedure = t.procedure.use(enforceUserIsAuthed).use(enforceUserIsAdmin);
+
+// Permission-based middleware factory
+export const requirePermission = (module: string, action: string) => {
+  return t.middleware(async ({ ctx, next }) => {
+    // Admin always bypasses permission checks
+    if (ctx.userData?.role === 'admin') {
+      return next({ ctx });
+    }
+    if (!hasPermission(ctx.permissions, module, action)) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Bạn không có quyền thực hiện hành động này',
+      });
+    }
+    return next({ ctx });
+  });
+};

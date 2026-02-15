@@ -31,7 +31,7 @@ const initializeFirebaseAdmin = () => {
       }
     } else {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const serviceAccount = require('../../firebase-service-account.json');
+      const serviceAccount = require('../../sotienplus-service-account-key.json');
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       }, ADMIN_APP_NAME);

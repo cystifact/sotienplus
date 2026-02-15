@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, UserCheck, RefreshCw } from 'lucide-react';
+import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
 
 const settingsLinks = [
   {
@@ -10,27 +11,36 @@ const settingsLinks = [
     description: 'Thêm, sửa, xóa tài khoản',
     href: '/settings/users',
     icon: Users,
+    module: 'users',
+    action: 'view',
   },
   {
-    title: 'Người nhận tiền',
-    description: 'Quản lý danh sách người nhận tiền',
+    title: 'Người nộp tiền',
+    description: 'Quản lý danh sách người nộp tiền',
     href: '/settings/collectors',
     icon: UserCheck,
+    module: 'collectors',
+    action: 'view',
   },
   {
     title: 'KiotViet',
     description: 'Cài đặt đồng bộ khách hàng',
     href: '/settings/kiotviet',
     icon: RefreshCw,
+    module: 'kiotviet',
+    action: 'view',
   },
 ];
 
 export default function SettingsPage() {
+  const { hasPermission } = useCurrentUserPermissions();
+  const visibleLinks = settingsLinks.filter((link) => hasPermission(link.module, link.action));
+
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Cài đặt</h1>
+      <h1 className="text-lg sm:text-2xl font-bold mb-4 sm:mb-6">Cài đặt</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {settingsLinks.map((link) => (
+        {visibleLinks.map((link) => (
           <Link key={link.href} href={link.href}>
             <Card className="hover:border-primary/50 transition-colors cursor-pointer">
               <CardHeader className="pb-3">

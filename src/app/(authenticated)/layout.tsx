@@ -35,7 +35,8 @@ export default function AuthenticatedLayout({
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 py-6 pb-20 md:pb-6">
+      {/* pb-20 on mobile for bottom nav + safe area, pb-6 on desktop */}
+      <main className="container-optimized py-4 pb-20 md:pb-6">
         {children}
       </main>
     </div>

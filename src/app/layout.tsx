@@ -6,9 +6,16 @@ import ClientProviders from './client-providers';
 const inter = Inter({ subsets: ['latin', 'vietnamese'] });
 
 export const metadata: Metadata = {
-  title: 'Sổ Ghi Tiền',
-  description: 'Sổ ghi tiền thu nợ khách hàng',
+  title: 'SoTienPlus',
+  description: 'Quản lý thu tiền khách hàng',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: { url: '/icon-192x192.png', sizes: '192x192' },
+  },
 };
 
 export const viewport: Viewport = {

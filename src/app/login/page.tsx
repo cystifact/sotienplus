@@ -15,7 +15,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, BookOpen } from 'lucide-react';
+import Image from 'next/image';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function LoginPage() {
     try {
       const loginEmail = emailOrUsername.includes('@')
         ? emailOrUsername
-        : `${emailOrUsername}@soghitien.local`;
+        : `${emailOrUsername}@sotienplus.local`;
 
       await signInWithEmailAndPassword(auth, loginEmail, password);
       toast.success('Đăng nhập thành công');
@@ -57,12 +58,16 @@ export default function LoginPage() {
         <Card>
           <CardHeader className="pt-8">
             <div className="flex items-center justify-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-                <BookOpen className="h-8 w-8" />
-              </div>
+              <Image
+                src="/icon-192x192.png"
+                alt="SoTienPlus"
+                width={70}
+                height={70}
+                priority
+              />
               <div>
                 <CardTitle className="text-3xl font-bold text-primary">
-                  Sổ Ghi Tiền
+                  SoTienPlus
                 </CardTitle>
                 <CardDescription className="mt-1 text-base">
                   Quản lý thu tiền khách hàng
@@ -73,16 +78,19 @@ export default function LoginPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="emailOrUsername">Username</Label>
+                <Label htmlFor="emailOrUsername">Username hoặc Email</Label>
                 <Input
                   id="emailOrUsername"
                   type="text"
-                  placeholder="Nhập username"
+                  placeholder="Nhập username hoặc email"
                   value={emailOrUsername}
                   onChange={(e) => setEmailOrUsername(e.target.value)}
                   required
                   disabled={isLoading}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Admin dùng email, nhân viên dùng username
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Mật khẩu</Label>
