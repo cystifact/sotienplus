@@ -21,7 +21,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "date", "order": "DESCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     },
     {
@@ -46,15 +46,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "date", "order": "ASCENDING" },
-        { "fieldPath": "checkKiotVietEntered", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "cash_records",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "date", "order": "ASCENDING" },
-        { "fieldPath": "checkActualReceived", "order": "ASCENDING" },
         { "fieldPath": "checkKiotVietEntered", "order": "ASCENDING" }
       ]
     },

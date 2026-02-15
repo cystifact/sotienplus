@@ -9,39 +9,39 @@ const initializeFirebaseAdmin = () => {
   }
 
   try {
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        admin.initializeApp({
-          credential: admin.credential.applicationDefault(),
-        }, ADMIN_APP_NAME);
-      } catch (adcError: any) {
-        const saRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
-                     process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-        if (!saRaw) {
-          throw adcError;
-        }
-
-        const serviceAccount = saRaw.trim().startsWith('{')
-          ? JSON.parse(saRaw)
-          : JSON.parse(Buffer.from(saRaw, 'base64').toString('utf8'));
-
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-        }, ADMIN_APP_NAME);
-      }
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const serviceAccount = require('../../sotienplus-service-account-key.json');
+    // Try Application Default Credentials first (works in Cloud Run, GCE, local gcloud auth)
+    try {
       admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+        credential: admin.credential.applicationDefault(),
       }, ADMIN_APP_NAME);
+      return;
+    } catch (_adcError) {
+      // ADC not available, fall back to env-based service account
     }
+
+    // Fall back to service account from environment variable
+    const saRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+                 process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+    if (!saRaw) {
+      throw new Error(
+        'No Firebase credentials found. Set GOOGLE_APPLICATION_CREDENTIALS, ' +
+        'FIREBASE_SERVICE_ACCOUNT_JSON, or FIREBASE_SERVICE_ACCOUNT_BASE64.'
+      );
+    }
+
+    const serviceAccount = saRaw.trim().startsWith('{')
+      ? JSON.parse(saRaw)
+      : JSON.parse(Buffer.from(saRaw, 'base64').toString('utf8'));
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    }, ADMIN_APP_NAME);
   } catch (error: any) {
     console.error('[AdminInit] Firebase Admin initialization error:', {
       message: error.message,
       code: error.code,
     });
-    throw new Error('Failed to initialize Firebase Admin SDK: ' + error.message);
+    throw new Error('Failed to initialize Firebase Admin SDK');
   }
 };
 

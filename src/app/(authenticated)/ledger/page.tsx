@@ -177,7 +177,9 @@ export default function LedgerPage() {
   const markForSyncMutation = trpc.cashRecords.markForSync.useMutation({
     onSuccess: (data) => {
       utils.cashRecords.list.invalidate();
-      toast.success(`Đã đánh dấu ${data.marked} bản ghi cho RPA`);
+      if (data.marked > 0) {
+        toast.success(`Đã gửi ${data.marked} bản ghi thanh toán KiotViet`);
+      }
     },
     onError: (err) => toast.error(err.message),
   });
@@ -185,7 +187,7 @@ export default function LedgerPage() {
   const retryFailedMutation = trpc.cashRecords.retryFailed.useMutation({
     onSuccess: (data) => {
       utils.cashRecords.list.invalidate();
-      toast.success(`Đã gửi lại ${data.retried} bản ghi cho RPA`);
+      toast.success(`Đã gửi lại ${data.retried} bản ghi thanh toán KiotViet`);
     },
     onError: (err) => toast.error(err.message),
   });
@@ -280,12 +282,12 @@ export default function LedgerPage() {
       const origAmount = record.rpaOriginalAmount != null ? formatNumber(record.rpaOriginalAmount) : '?';
       const newAmount = formatNumber(record.amount);
       const tooltip = record.rpaOriginalAmount !== record.amount
-        ? `So tien da thay doi: ${origAmount} → ${newAmount}. Can sua phieu thu trong KiotViet.`
-        : `Thong tin KH da thay doi. Can sua phieu thu trong KiotViet.`;
+        ? `Số tiền đã thay đổi: ${origAmount} → ${newAmount}. Cần sửa phiếu thu trong KiotViet.`
+        : `Thông tin KH đã thay đổi. Cần sửa phiếu thu trong KiotViet.`;
       return (
-        <Badge variant="outline" className="text-xs text-orange-600 border-orange-400 bg-orange-50" title={tooltip}>
+        <Badge variant="outline" className="whitespace-nowrap text-xs text-orange-600 border-orange-400 bg-orange-50" title={tooltip}>
           <AlertTriangle className="w-2 h-2 mr-1" />
-          KV can sua
+          KV cần sửa!
         </Badge>
       );
     }
@@ -294,30 +296,30 @@ export default function LedgerPage() {
     switch (record.rpaStatus) {
       case 'pending':
         return (
-          <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-300">
+          <Badge variant="outline" className="whitespace-nowrap text-xs text-yellow-600 border-yellow-300">
             <Circle className="w-2 h-2 mr-1 fill-yellow-500" />
-            RPA cho
+            Chờ TT
           </Badge>
         );
       case 'processing':
         return (
-          <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
+          <Badge variant="outline" className="whitespace-nowrap text-xs text-blue-600 border-blue-300">
             <Loader2 className="w-2 h-2 mr-1 animate-spin" />
-            RPA...
+            Đang TT...
           </Badge>
         );
       case 'success':
         return (
-          <Badge variant="outline" className="text-xs text-green-600 border-green-300">
+          <Badge variant="outline" className="whitespace-nowrap text-xs text-green-600 border-green-300">
             <CheckCircle2 className="w-2 h-2 mr-1" />
-            RPA OK
+            Đã TT
           </Badge>
         );
       case 'failed':
         return (
-          <Badge variant="outline" className="text-xs text-red-600 border-red-300" title={record.rpaError}>
+          <Badge variant="outline" className="whitespace-nowrap text-xs text-red-600 border-red-300" title={record.rpaError}>
             <AlertCircle className="w-2 h-2 mr-1" />
-            RPA loi
+            TT lỗi
           </Badge>
         );
       default:
@@ -430,7 +432,32 @@ export default function LedgerPage() {
             <Download className="w-4 h-4 mr-1" />
             <span className="hidden sm:inline">Excel</span>
           </Button>
-          {(canBulkCheck || canRpaSync) && dateMode !== 'range' && (
+          {canRpaSync && dateMode !== 'range' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                markForSyncMutation.mutate({ date: activeDate }, {
+                  onSuccess: (data) => {
+                    if (data.marked === 0) {
+                      toast.info('Không có bản ghi cần thanh toán KiotViet');
+                    }
+                  },
+                });
+              }}
+              disabled={markForSyncMutation.isPending}
+              className="text-blue-600 border-blue-200 hover:bg-blue-50"
+            >
+              {markForSyncMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Bot className="w-4 h-4 mr-1" />
+              )}
+              <span className="hidden sm:inline">Thanh toán KV</span>
+              <span className="sm:hidden">KV</span>
+            </Button>
+          )}
+          {canBulkCheck && dateMode !== 'range' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -440,32 +467,18 @@ export default function LedgerPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {canBulkCheck && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={() => handleBulkCheck('checkActualReceived')}
-                      disabled={bulkCheckMutation.isPending}
-                    >
-                      Tick tất cả &quot;Thực nhận&quot;
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleBulkCheck('checkKiotVietEntered')}
-                      disabled={bulkCheckMutation.isPending}
-                    >
-                      Tick tất cả &quot;KiotViet&quot;
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {canBulkCheck && canRpaSync && <DropdownMenuSeparator />}
-                {canRpaSync && (
-                  <DropdownMenuItem
-                    onClick={() => markForSyncMutation.mutate({ date: activeDate })}
-                    disabled={markForSyncMutation.isPending}
-                  >
-                    <Bot className="w-4 h-4 mr-2" />
-                    Đồng bộ KiotViet (RPA)
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem
+                  onClick={() => handleBulkCheck('checkActualReceived')}
+                  disabled={bulkCheckMutation.isPending}
+                >
+                  Tick tất cả &quot;Thực nhận&quot;
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleBulkCheck('checkKiotVietEntered')}
+                  disabled={bulkCheckMutation.isPending}
+                >
+                  Tick tất cả &quot;KiotViet&quot;
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -522,17 +535,17 @@ export default function LedgerPage() {
         <Card className="border-dashed">
           <CardContent className="py-2 px-4">
             <div className="flex flex-wrap items-center gap-3 text-xs">
-              <span className="text-muted-foreground font-medium">RPA:</span>
+              <span className="text-muted-foreground font-medium">KiotViet:</span>
               {rpaStats.pending > 0 && (
                 <span className="flex items-center gap-1 text-yellow-600">
                   <Circle className="w-2 h-2 fill-yellow-500" />
-                  Cho: {rpaStats.pending}
+                  Chờ TT: {rpaStats.pending}
                 </span>
               )}
               {rpaStats.processing > 0 && (
                 <span className="flex items-center gap-1 text-blue-600">
                   <Loader2 className="w-2 h-2 animate-spin" />
-                  Dang xu ly: {rpaStats.processing}
+                  Đang TT: {rpaStats.processing}
                 </span>
               )}
               {rpaStats.success > 0 && (
@@ -544,7 +557,7 @@ export default function LedgerPage() {
               {rpaStats.failed > 0 && (
                 <span className="flex items-center gap-1 text-red-600">
                   <AlertCircle className="w-2 h-2" />
-                  Loi: {rpaStats.failed}
+                  TT lỗi: {rpaStats.failed}
                   {canRpaSync && (
                     <Button
                       variant="ghost"
@@ -554,7 +567,7 @@ export default function LedgerPage() {
                       disabled={retryFailedMutation.isPending}
                     >
                       <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
-                      Thu lai
+                      Thử lại
                     </Button>
                   )}
                 </span>
@@ -562,7 +575,7 @@ export default function LedgerPage() {
               {rpaStats.needsCorrection > 0 && (
                 <span className="flex items-center gap-1 text-orange-600">
                   <AlertTriangle className="w-2 h-2" />
-                  Can sua KV: {rpaStats.needsCorrection}
+                  Cần sửa KV: {rpaStats.needsCorrection}!
                 </span>
               )}
             </div>
@@ -582,58 +595,44 @@ export default function LedgerPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-emerald-50 dark:bg-emerald-950/30">
-                  <TableHead className="w-10 font-semibold">#</TableHead>
                   {dateMode === 'range' && (
                     <TableHead className="font-semibold">Ngày</TableHead>
                   )}
-                  {canCheck && (
-                    <>
-                      <TableHead className="font-semibold text-center w-12" title="Thực nhận">TN</TableHead>
-                      <TableHead className="font-semibold text-center w-12" title="KiotViet">KV</TableHead>
-                    </>
-                  )}
                   <TableHead className="font-semibold">Khách hàng</TableHead>
                   <TableHead className="font-semibold text-right">Số tiền</TableHead>
-                  <TableHead className="font-semibold">Ng. tạo</TableHead>
                   <TableHead className="font-semibold">Ng. nộp</TableHead>
+                  <TableHead className="font-semibold">Ng. tạo</TableHead>
+                  <TableHead className="font-semibold text-center w-24">KiotViet</TableHead>
+                  {canCheck && (
+                    <TableHead className="font-semibold text-center w-12" title="Thực nhận">TN</TableHead>
+                  )}
                   <TableHead className="font-semibold">Ghi chú</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRecords.map((record: any, index: number) => (
+                {filteredRecords.map((record: any) => (
                   <TableRow
                     key={record.id}
                     className="cursor-pointer hover:bg-accent/50"
                     onClick={() => handleEdit(record)}
                   >
-                    <TableCell className="text-muted-foreground text-xs">
-                      {index + 1}
-                    </TableCell>
                     {dateMode === 'range' && (
                       <TableCell className="text-sm">{formatDate(record.date)}</TableCell>
                     )}
-                    {canCheck && (
-                      <>
-                        <TableCell
-                          className="text-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Checkbox
-                            checked={record.checkActualReceived}
-                            onCheckedChange={(checked) =>
-                              toggleCheckMutation.mutate({
-                                id: record.id,
-                                field: 'checkActualReceived',
-                                value: !!checked,
-                              })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell
-                          className="text-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                    <TableCell>
+                      <span className="font-medium text-sm">{record.customerName}</span>
+                    </TableCell>
+                    <TableCell className="text-right font-bold tabular-nums text-primary">
+                      {formatNumber(record.amount)}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{record.collectorName}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{record.createdByName}</TableCell>
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                      {record.rpaStatus ? (
+                        getRpaStatusBadge(record)
+                      ) : (
+                        canCheck && (
                           <Checkbox
                             checked={record.checkKiotVietEntered}
                             onCheckedChange={(checked) =>
@@ -644,34 +643,33 @@ export default function LedgerPage() {
                               })
                             }
                           />
-                        </TableCell>
-                      </>
+                        )
+                      )}
+                    </TableCell>
+                    {canCheck && (
+                      <TableCell
+                        className="text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Checkbox
+                          checked={record.checkActualReceived}
+                          onCheckedChange={(checked) =>
+                            toggleCheckMutation.mutate({
+                              id: record.id,
+                              field: 'checkActualReceived',
+                              value: !!checked,
+                            })
+                          }
+                        />
+                      </TableCell>
                     )}
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{record.customerName}</span>
-                        {record.customerCode && (
-                          <span className="text-xs text-muted-foreground">
-                            ({record.customerCode})
-                          </span>
-                        )}
-                        {getRpaStatusBadge(record)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-bold tabular-nums text-primary">
-                      {formatNumber(record.amount)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {record.createdByName}
-                    </TableCell>
-                    <TableCell className="text-sm">{record.collectorName}</TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
                       {record.notes || ''}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Tùy chọn">
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -691,6 +689,18 @@ export default function LedgerPage() {
                               Xóa
                             </DropdownMenuItem>
                           )}
+                          {canRpaSync && record.customerCode && (!record.rpaStatus || record.rpaStatus === 'failed') && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-blue-600"
+                                onClick={() => retryFailedMutation.mutate({ ids: [record.id] })}
+                              >
+                                <Bot className="h-4 w-4 mr-2" />
+                                Thanh toán KV
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           {canRpaSync && record.rpaNeedsKiotVietCorrection && !record.rpaKiotVietCorrected && (
                             <>
                               <DropdownMenuSeparator />
@@ -699,7 +709,7 @@ export default function LedgerPage() {
                                 onClick={() => confirmCorrectedMutation.mutate({ id: record.id })}
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                                Da sua KiotViet
+                                Đã sửa KV
                               </DropdownMenuItem>
                             </>
                           )}
@@ -727,7 +737,7 @@ export default function LedgerPage() {
                         <span className="font-medium text-sm truncate">
                           {record.customerName}
                         </span>
-                        {getRpaStatusBadge(record)}
+                        {record.rpaStatus ? getRpaStatusBadge(record) : null}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{record.collectorName}</span>
@@ -762,20 +772,22 @@ export default function LedgerPage() {
                             />
                             TN
                           </label>
-                          <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Checkbox
-                              checked={record.checkKiotVietEntered}
-                              onCheckedChange={(checked) =>
-                                toggleCheckMutation.mutate({
-                                  id: record.id,
-                                  field: 'checkKiotVietEntered',
-                                  value: !!checked,
-                                })
-                              }
-                              className="h-4 w-4"
-                            />
-                            KV
-                          </label>
+                          {!record.rpaStatus && (
+                            <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Checkbox
+                                checked={record.checkKiotVietEntered}
+                                onCheckedChange={(checked) =>
+                                  toggleCheckMutation.mutate({
+                                    id: record.id,
+                                    field: 'checkKiotVietEntered',
+                                    value: !!checked,
+                                  })
+                                }
+                                className="h-4 w-4"
+                              />
+                              KV
+                            </label>
+                          )}
                         </div>
                       )}
                     </div>

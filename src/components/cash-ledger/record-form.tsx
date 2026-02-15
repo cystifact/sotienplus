@@ -118,7 +118,7 @@ export function RecordForm({
                         </p>
                       ) : (
                         <p>
-                          Record nay da duoc RPA tao phieu thu trong KiotViet
+                          Ban ghi nay da duoc thanh toan trong KiotViet
                           {origAmount != null ? ` (so tien: ${formatNumber(origAmount)})` : ''}.
                           {' '}Neu thay doi so tien hoac khach hang, hay nho sua phieu thu trong KiotViet.
                         </p>

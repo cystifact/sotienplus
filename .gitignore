@@ -40,3 +40,6 @@ firebase-service-account.json
 firebase-debug.log
 firebase-debug.*.log
 ui-debug.log
+
+# windows artifacts
+nul

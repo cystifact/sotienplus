@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { Header } from '@/components/layout/Header';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function AuthenticatedLayout({
   children,
@@ -22,7 +23,7 @@ export default function AuthenticatedLayout({
 
   if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" role="status" aria-busy="true">
         <div className="animate-pulse text-muted-foreground">Đang tải...</div>
       </div>
     );
@@ -37,7 +38,9 @@ export default function AuthenticatedLayout({
       <Header />
       {/* pb-20 on mobile for bottom nav + safe area, pb-6 on desktop */}
       <main className="container-optimized py-4 pb-20 md:pb-6">
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </main>
     </div>
   );

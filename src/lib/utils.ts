@@ -31,23 +31,24 @@ export function formatDateISO(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
+/** Get current date in Vietnam timezone as YYYY-MM-DD */
 export function getTodayISO(): string {
-  // Vietnam timezone (UTC+7)
-  const now = new Date();
-  const vnDate = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-  return vnDate.toISOString().split('T')[0];
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
 export function getYesterdayISO(): string {
-  const now = new Date();
-  const vnDate = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-  vnDate.setDate(vnDate.getDate() - 1);
-  return vnDate.toISOString().split('T')[0];
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
 export function getDayBeforeYesterdayISO(): string {
-  const now = new Date();
-  const vnDate = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-  vnDate.setDate(vnDate.getDate() - 2);
-  return vnDate.toISOString().split('T')[0];
+  const d = new Date();
+  d.setDate(d.getDate() - 2);
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+}
+
+/** Get current date in Vietnam timezone (for server-side use) */
+export function getVietnamTodayISO(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 }

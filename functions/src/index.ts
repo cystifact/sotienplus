@@ -121,7 +121,7 @@ export const scheduledCustomerSync = onSchedule(
       const db = admin.firestore();
       const now = new Date();
 
-      // Process in chunks of 500 (Firestore batch limit)
+      // Always use chunked batch writes (Firestore limit is 500 per batch)
       const chunks: any[][] = [];
       for (let i = 0; i < customers.length; i += 500) {
         chunks.push(customers.slice(i, i + 500));

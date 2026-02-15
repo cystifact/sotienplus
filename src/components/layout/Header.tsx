@@ -96,7 +96,7 @@ export function Header() {
                 )}
               </span>
             )}
-            <Button variant="ghost" size="icon" onClick={handleLogout} title="Đăng xuất">
+            <Button variant="ghost" size="icon" onClick={handleLogout} title="Đăng xuất" aria-label="Đăng xuất">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>

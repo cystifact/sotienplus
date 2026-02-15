@@ -41,10 +41,10 @@ export const usersRouter = router({
     .use(requirePermission('users', 'create'))
     .input(
       z.object({
-        username: z.string().min(3).max(30).optional(),
+        username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_-]+$/, 'Username chỉ chứa chữ, số, _ và -').optional(),
         email: z.string().email().optional(),
         displayName: z.string().min(1).max(100),
-        password: z.string().min(6),
+        password: z.string().min(8).max(128),
         role: z.enum(['admin', 'manager', 'staff']),
       })
     )
@@ -85,16 +85,27 @@ export const usersRouter = router({
         displayName: input.displayName,
       });
 
-      const now = FieldValue.serverTimestamp();
-      await db.collection('users').doc(userRecord.uid).set({
-        email,
-        username,
-        displayName: input.displayName,
-        role: input.role,
-        isActive: true,
-        createdAt: now,
-        updatedAt: now,
-      });
+      // Atomic: if Firestore write fails, clean up the Auth user
+      try {
+        const now = FieldValue.serverTimestamp();
+        await db.collection('users').doc(userRecord.uid).set({
+          email,
+          username,
+          displayName: input.displayName,
+          role: input.role,
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch (firestoreError) {
+        // Rollback: delete the Firebase Auth user since Firestore write failed
+        try {
+          await adminAuth.deleteUser(userRecord.uid);
+        } catch (_cleanupError) {
+          console.error('[Users] Failed to rollback Auth user after Firestore error:', userRecord.uid);
+        }
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Tạo user thất bại' });
+      }
 
       return { id: userRecord.uid };
     }),
@@ -146,7 +157,7 @@ export const usersRouter = router({
     .input(
       z.object({
         id: z.string(),
-        password: z.string().min(6),
+        password: z.string().min(8).max(128),
       })
     )
     .mutation(async ({ input }) => {

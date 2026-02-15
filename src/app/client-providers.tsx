@@ -33,7 +33,7 @@ function useSyncServerSession(user: any) {
 
     syncSession();
 
-    const syncInterval = setInterval(syncSession, 12 * 60 * 60 * 1000);
+    const syncInterval = setInterval(syncSession, 4 * 60 * 60 * 1000); // Refresh every 4 hours
     return () => clearInterval(syncInterval);
   }, [user]);
 }

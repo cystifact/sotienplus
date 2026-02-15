@@ -20,11 +20,10 @@ export async function POST(request: NextRequest) {
     const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
 
     const res = NextResponse.json({ success: true });
-    const isProduction = process.env.NODE_ENV === 'production';
 
     res.cookies.set('__session', sessionCookie, {
       httpOnly: true,
-      secure: isProduction,
+      secure: true,
       sameSite: 'lax',
       maxAge: Math.floor(expiresIn / 1000),
       path: '/',
@@ -34,7 +33,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('[SessionLogin] Error:', error?.message);
     return NextResponse.json(
-      { error: error?.message || 'Failed to create session' },
+      { error: 'Đăng nhập thất bại' },
       { status: 500 }
     );
   }

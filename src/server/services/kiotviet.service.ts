@@ -18,7 +18,20 @@ export interface KiotVietCustomer {
   debt?: number;
 }
 
+// In-memory token cache
+let tokenCache: { token: string; expiresAt: number } | null = null;
+
 async function getKiotVietConfig(): Promise<KiotVietConfig> {
+  // Prefer environment variables for secrets
+  if (process.env.KIOTVIET_CLIENT_ID && process.env.KIOTVIET_CLIENT_SECRET && process.env.KIOTVIET_RETAILER_CODE) {
+    return {
+      clientId: process.env.KIOTVIET_CLIENT_ID,
+      clientSecret: process.env.KIOTVIET_CLIENT_SECRET,
+      retailerCode: process.env.KIOTVIET_RETAILER_CODE,
+    };
+  }
+
+  // Fall back to Firestore config
   const db = getAdminDb();
   const doc = await db.collection('settings').doc('kiotviet').get();
   if (!doc.exists) {
@@ -36,6 +49,11 @@ async function getKiotVietConfig(): Promise<KiotVietConfig> {
 }
 
 async function getToken(config: KiotVietConfig): Promise<string> {
+  // Return cached token if still valid (with 60s buffer)
+  if (tokenCache && Date.now() < tokenCache.expiresAt - 60_000) {
+    return tokenCache.token;
+  }
+
   const body = new URLSearchParams({
     scopes: 'PublicApi.Access',
     grant_type: 'client_credentials',
@@ -50,15 +68,22 @@ async function getToken(config: KiotVietConfig): Promise<string> {
   });
 
   if (!response.ok) {
+    tokenCache = null;
     const errorText = await response.text();
-    throw new Error(`Lỗi lấy token KiotViet: ${errorText}`);
+    console.error('[KiotViet] Token fetch error:', errorText);
+    throw new Error('Không thể kết nối KiotViet. Kiểm tra lại thông tin đăng nhập.');
   }
 
   const data = await response.json();
+  const expiresIn = data.expires_in || 3600;
+  tokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + expiresIn * 1000,
+  };
   return data.access_token;
 }
 
-async function fetchAllCustomers(config: KiotVietConfig, token: string): Promise<KiotVietCustomer[]> {
+export async function fetchAllCustomers(config: KiotVietConfig, token: string): Promise<KiotVietCustomer[]> {
   const customers: KiotVietCustomer[] = [];
   let currentItem = 0;
   const pageSize = 100;
@@ -78,7 +103,8 @@ async function fetchAllCustomers(config: KiotVietConfig, token: string): Promise
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Lỗi fetch customers: ${error}`);
+      console.error('[KiotViet] Customer fetch error:', error);
+      throw new Error('Lỗi khi đồng bộ khách hàng từ KiotViet');
     }
 
     const data = await response.json();
@@ -110,51 +136,31 @@ export async function syncCustomers(): Promise<{ synced: number; total: number }
   const customers = await fetchAllCustomers(config, token);
 
   const db = getAdminDb();
-  const batch = db.batch();
   const now = new Date();
 
-  for (const customer of customers) {
-    const docRef = db.collection('customers').doc(String(customer.id));
-    batch.set(docRef, {
-      kiotVietId: customer.id,
-      code: customer.code,
-      name: customer.name,
-      phone: customer.contactNumber || null,
-      address: customer.address || null,
-      debt: customer.debt || 0,
-      isActive: true,
-      lastSyncAt: now,
-      updatedAt: now,
-    }, { merge: true });
+  // Always use chunked batch writes (Firestore limit is 500 per batch)
+  const chunks: KiotVietCustomer[][] = [];
+  for (let i = 0; i < customers.length; i += 500) {
+    chunks.push(customers.slice(i, i + 500));
   }
 
-  // Firestore batch limit is 500, split if needed
-  if (customers.length <= 500) {
+  for (const chunk of chunks) {
+    const batch = db.batch();
+    for (const customer of chunk) {
+      const docRef = db.collection('customers').doc(String(customer.id));
+      batch.set(docRef, {
+        kiotVietId: customer.id,
+        code: customer.code,
+        name: customer.name,
+        phone: customer.contactNumber || null,
+        address: customer.address || null,
+        debt: customer.debt || 0,
+        isActive: true,
+        lastSyncAt: now,
+        updatedAt: now,
+      }, { merge: true });
+    }
     await batch.commit();
-  } else {
-    // Process in chunks of 500
-    const chunks = [];
-    for (let i = 0; i < customers.length; i += 500) {
-      chunks.push(customers.slice(i, i + 500));
-    }
-    for (const chunk of chunks) {
-      const chunkBatch = db.batch();
-      for (const customer of chunk) {
-        const docRef = db.collection('customers').doc(String(customer.id));
-        chunkBatch.set(docRef, {
-          kiotVietId: customer.id,
-          code: customer.code,
-          name: customer.name,
-          phone: customer.contactNumber || null,
-          address: customer.address || null,
-          debt: customer.debt || 0,
-          isActive: true,
-          lastSyncAt: now,
-          updatedAt: now,
-        }, { merge: true });
-      }
-      await chunkBatch.commit();
-    }
   }
 
   // Update last sync time in settings
@@ -180,12 +186,11 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      return { success: false, error: `API test failed: ${error}` };
+      return { success: false, error: 'Kết nối KiotViet thất bại. Kiểm tra lại cấu hình.' };
     }
 
     return { success: true };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    return { success: false, error: error instanceof Error ? error.message : 'Lỗi không xác định' };
   }
 }
