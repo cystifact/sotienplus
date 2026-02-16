@@ -2,10 +2,16 @@
 
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserCheck, RefreshCw } from 'lucide-react';
+import { Users, UserCheck, RefreshCw, KeyRound } from 'lucide-react';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
 
 const settingsLinks = [
+  {
+    title: 'Đổi mật khẩu',
+    description: 'Thay đổi mật khẩu đăng nhập',
+    href: '/settings/change-password',
+    icon: KeyRound,
+  },
   {
     title: 'Quản lý người dùng',
     description: 'Thêm, sửa, xóa tài khoản',
@@ -34,7 +40,7 @@ const settingsLinks = [
 
 export default function SettingsPage() {
   const { hasPermission } = useCurrentUserPermissions();
-  const visibleLinks = settingsLinks.filter((link) => hasPermission(link.module, link.action));
+  const visibleLinks = settingsLinks.filter((link) => !link.module || hasPermission(link.module, link.action));
 
   return (
     <div>

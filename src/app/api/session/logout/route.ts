@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   // Clear the session cookie
   res.cookies.set('__session', '', {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 0,
     path: '/',

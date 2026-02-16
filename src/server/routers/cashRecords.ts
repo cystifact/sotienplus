@@ -153,14 +153,18 @@ export const cashRecordsRouter = router({
           .filter((doc) => doc.data().isActive !== false)
           .map((doc) => {
             const d = doc.data();
-            return `${(d.customerName as string).toLowerCase()}|${d.amount}`;
+            const name = (d.customerName as string | null)?.toLowerCase() ?? '';
+            return `${name}|${d.amount}`;
           })
       );
 
-      // Build records, flagging server-side duplicates
+      // Build records, flagging server-side duplicates + intra-batch duplicates
+      const seenInBatch = new Set<string>();
       const recordsWithDupCheck = input.records.map((record) => {
         const key = `${record.customerName.trim().toLowerCase()}|${record.amount}`;
-        return { ...record, isDuplicate: existingSet.has(key) };
+        const isDuplicate = existingSet.has(key) || seenInBatch.has(key);
+        seenInBatch.add(key);
+        return { ...record, isDuplicate };
       });
 
       const chunks: typeof input.records[] = [];
@@ -287,7 +291,7 @@ export const cashRecordsRouter = router({
         }
 
         // Auto-queue for RPA when record gains a customerCode and hasn't been processed yet
-        const newCustomerCode = updateData.customerCode || data.customerCode;
+        const newCustomerCode = updateData.customerCode !== undefined ? updateData.customerCode : data.customerCode;
         const needsRpaQueue = !shouldSkipRpa(newCustomerCode)
           && (!data.rpaStatus || data.rpaStatus === 'failed');
         if (needsRpaQueue) {
@@ -336,7 +340,12 @@ export const cashRecordsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const db = getAdminDb();
-      await db.collection('cash_records').doc(input.id).update({
+      const docRef = db.collection('cash_records').doc(input.id);
+      const doc = await docRef.get();
+      if (!doc.exists || doc.data()?.isActive === false) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Bản ghi không tồn tại' });
+      }
+      await docRef.update({
         [input.field]: input.value,
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: ctx.userData!.id,
@@ -551,16 +560,23 @@ export const cashRecordsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const db = getAdminDb();
-      const chunks: string[][] = [];
-      for (let i = 0; i < input.ids.length; i += 500) {
-        chunks.push(input.ids.slice(i, i + 500));
+
+      // Batch-load docs to validate isActive and shouldSkipRpa
+      const refs = input.ids.map(id => db.collection('cash_records').doc(id));
+      const docs = await db.getAll(...refs);
+      const validRefs = docs
+        .filter(doc => doc.exists && doc.data()?.isActive !== false && !shouldSkipRpa(doc.data()?.customerCode))
+        .map(doc => doc.ref);
+
+      const chunks: FirebaseFirestore.DocumentReference[][] = [];
+      for (let i = 0; i < validRefs.length; i += 500) {
+        chunks.push(validRefs.slice(i, i + 500));
       }
 
       let retried = 0;
       for (const chunk of chunks) {
         const batch = db.batch();
-        for (const id of chunk) {
-          const ref = db.collection('cash_records').doc(id);
+        for (const ref of chunk) {
           batch.update(ref, {
             rpaStatus: 'pending',
             rpaError: null,
@@ -583,7 +599,12 @@ export const cashRecordsRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const db = getAdminDb();
-      await db.collection('cash_records').doc(input.id).update({
+      const docRef = db.collection('cash_records').doc(input.id);
+      const doc = await docRef.get();
+      if (!doc.exists || doc.data()?.isActive === false) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Bản ghi không tồn tại' });
+      }
+      await docRef.update({
         rpaNeedsKiotVietCorrection: false,
         rpaKiotVietCorrected: true,
         updatedAt: FieldValue.serverTimestamp(),

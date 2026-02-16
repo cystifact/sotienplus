@@ -24,7 +24,7 @@
       "**/node_modules/**"
     ],
     "rewrites": [
-      { "source": "**", "run": { "serviceId": "soghitien", "region": "asia-southeast1" } }
+      { "source": "**", "run": { "serviceId": "sotienplus", "region": "asia-southeast1" } }
     ]
   }
 }

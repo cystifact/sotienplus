@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Plus,
   Shield,
+  KeyRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -181,6 +182,22 @@ export function Header() {
               </div>
             </div>
           )}
+
+          <Separator />
+
+          {/* Account */}
+          <div className="py-2">
+            <p className="px-4 py-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+              Tài khoản
+            </p>
+            <button
+              onClick={() => handleDrawerLink('/settings/change-password')}
+              className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-accent transition-colors"
+            >
+              <KeyRound className="h-4 w-4 text-muted-foreground" />
+              Đổi mật khẩu
+            </button>
+          </div>
 
           <Separator />
 

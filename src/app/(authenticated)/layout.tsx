@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { Header } from '@/components/layout/Header';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 
 export default function AuthenticatedLayout({
   children,
@@ -36,6 +37,7 @@ export default function AuthenticatedLayout({
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      <InstallPrompt />
       {/* pb-20 on mobile for bottom nav + safe area, pb-6 on desktop */}
       <main className="container-optimized py-4 pb-20 md:pb-6">
         <ErrorBoundary>

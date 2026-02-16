@@ -124,7 +124,7 @@ export default function LedgerPage() {
       const data = query.state.data as any[] | undefined;
       if (!data) return false;
       const hasInFlight = data.some((r: any) => r.rpaStatus === 'pending' || r.rpaStatus === 'processing');
-      return hasInFlight ? 5000 : false;
+      return hasInFlight ? 15000 : false;
     },
   });
 
@@ -230,7 +230,7 @@ export default function LedgerPage() {
       'Người tạo': r.createdByName,
       'Ghi chú': r.notes || '',
       'Thực nhận': r.checkActualReceived ? '✓' : '',
-      KiotViet: r.checkKiotVietEntered ? '✓' : '',
+      KiotViet: (r.checkKiotVietEntered || r.rpaStatus === 'success') ? '✓' : '',
     }));
 
     const ws = xlsxUtils.json_to_sheet(data);

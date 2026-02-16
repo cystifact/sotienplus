@@ -2,8 +2,9 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { httpBatchLink } from '@trpc/client';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { trpc } from '@/lib/trpc';
+import { auth } from '@/lib/firebase';
 import type { User } from 'firebase/auth';
 
 export default function TRPCProvider({
@@ -30,6 +31,21 @@ export default function TRPCProvider({
       })
   );
 
+  // Clear cached queries on logout or user switch
+  const prevUidRef = useRef<string | undefined>(user?.uid);
+  useEffect(() => {
+    const prevUid = prevUidRef.current;
+    const currentUid = user?.uid;
+
+    if (prevUid !== currentUid) {
+      // User changed (logout, login, or switch): clear entire cache
+      queryClient.clear();
+    }
+
+    prevUidRef.current = currentUid;
+  }, [user?.uid, queryClient]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const trpcClient = useMemo(() => {
     return trpc.createClient({
       links: [
@@ -37,9 +53,12 @@ export default function TRPCProvider({
           url: '/api/trpc',
           maxURLLength: 2000,
           async headers() {
-            if (user) {
+            // Read auth.currentUser directly to always get the latest auth state,
+            // regardless of React render timing or closure staleness
+            const currentUser = auth.currentUser;
+            if (currentUser) {
               try {
-                const token = await user.getIdToken();
+                const token = await currentUser.getIdToken();
                 return { Authorization: `Bearer ${token}` };
               } catch {
                 return {};
@@ -50,7 +69,7 @@ export default function TRPCProvider({
         }),
       ],
     });
-  }, [user]);
+  }, []);
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
