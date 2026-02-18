@@ -105,7 +105,7 @@ export default function LedgerPage() {
       const data = query.state.data as any[] | undefined;
       if (!data) return false;
       const hasInFlight = data.some((r: any) => r.rpaStatus === 'pending' || r.rpaStatus === 'processing');
-      return hasInFlight ? 5000 : false;
+      return hasInFlight ? 1000 : false;
     },
   });
 
