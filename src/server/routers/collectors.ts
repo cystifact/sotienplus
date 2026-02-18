@@ -5,7 +5,9 @@ import { TRPCError } from '@trpc/server';
 import { FieldValue } from 'firebase-admin/firestore';
 
 export const collectorsRouter = router({
-  list: protectedProcedure.query(async () => {
+  list: protectedProcedure
+    .use(requirePermission('collectors', 'view'))
+    .query(async () => {
     const db = getAdminDb();
     const snapshot = await db.collection('collectors')
       .where('isActive', '==', true)

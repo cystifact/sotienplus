@@ -245,7 +245,7 @@ export function useRecordForm({
   const customerOptions = useMemo(() => {
     if (!customers) return [];
     return (customers as any[]).map((c: any) => ({
-      label: `${c.name}${c.code ? ` (${c.code})` : ''}`,
+      label: c.name,
       value: c.id,
       searchText: `${c.code || ''} ${c.phone || ''}`,
     }));

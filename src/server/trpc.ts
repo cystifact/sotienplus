@@ -85,17 +85,20 @@ const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Tài khoản đã bị vô hiệu hóa' });
   }
 
+  const VALID_ROLES: UserRole[] = ['admin', 'manager', 'staff'];
+  const role: UserRole = VALID_ROLES.includes(data.role) ? data.role : 'staff';
+
   const userData: UserData = {
     id: userDoc.id,
     email: data.email,
     displayName: data.displayName,
-    role: data.role as UserRole,
+    role,
     isActive: data.isActive,
   };
 
   // Resolve permissions from same doc read (no extra Firestore call)
   const permissions = mergePermissions(
-    data.role as UserRole,
+    role,
     data.permissions || [],
   );
 

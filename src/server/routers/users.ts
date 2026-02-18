@@ -3,6 +3,11 @@ import { router, protectedProcedure, requirePermission } from '../trpc';
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 import { TRPCError } from '@trpc/server';
 import { FieldValue } from 'firebase-admin/firestore';
+import { AVAILABLE_PERMISSIONS } from '@/lib/permissions-config';
+
+const VALID_PERMISSION_KEYS = new Set(
+  AVAILABLE_PERMISSIONS.map((p) => `${p.module}:${p.action}`)
+);
 
 const SHADOW_EMAIL_DOMAIN = '@sotienplus.local';
 
@@ -48,9 +53,14 @@ export const usersRouter = router({
         role: z.enum(['admin', 'manager', 'staff']),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const adminAuth = getAdminAuth();
       const db = getAdminDb();
+
+      // Only admin can create admin accounts
+      if (input.role === 'admin' && ctx.userData!.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Chỉ admin mới có thể tạo tài khoản admin' });
+      }
 
       // Admin requires real email, staff/manager requires username
       if (input.role === 'admin' && !input.email) {
@@ -120,14 +130,27 @@ export const usersRouter = router({
         isActive: z.boolean().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const db = getAdminDb();
       const adminAuth = getAdminAuth();
       const { id, ...updateData } = input;
+      const isCallerAdmin = ctx.userData!.role === 'admin';
 
       const doc = await db.collection('users').doc(id).get();
       if (!doc.exists) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'User không tồn tại' });
+      }
+
+      const targetRole = doc.data()?.role;
+
+      // Non-admin cannot modify admin accounts
+      if (targetRole === 'admin' && !isCallerAdmin) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Chỉ admin mới có thể chỉnh sửa tài khoản admin' });
+      }
+
+      // Non-admin cannot promote to admin
+      if (updateData.role === 'admin' && !isCallerAdmin) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Chỉ admin mới có thể cấp quyền admin' });
       }
 
       const firestoreUpdate: Record<string, any> = {
@@ -160,7 +183,16 @@ export const usersRouter = router({
         password: z.string().min(8).max(128),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      // Non-admin cannot reset admin passwords
+      if (ctx.userData!.role !== 'admin') {
+        const db = getAdminDb();
+        const targetDoc = await db.collection('users').doc(input.id).get();
+        if (targetDoc.exists && targetDoc.data()?.role === 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Chỉ admin mới có thể đặt lại mật khẩu admin' });
+        }
+      }
+
       const adminAuth = getAdminAuth();
       await adminAuth.updateUser(input.id, { password: input.password });
       return { success: true };
@@ -192,6 +224,13 @@ export const usersRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Không thể chỉnh sửa quyền của chính mình' });
       }
 
+      // Validate all permission keys are from AVAILABLE_PERMISSIONS
+      for (const p of input.permissions) {
+        if (!VALID_PERMISSION_KEYS.has(`${p.module}:${p.action}`)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `Quyền không hợp lệ: ${p.module}:${p.action}` });
+        }
+      }
+
       const db = getAdminDb();
       const doc = await db.collection('users').doc(input.id).get();
       if (!doc.exists) {
@@ -209,9 +248,18 @@ export const usersRouter = router({
   delete: protectedProcedure
     .use(requirePermission('users', 'delete'))
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const db = getAdminDb();
       const adminAuth = getAdminAuth();
+
+      // Non-admin cannot delete admin accounts
+      const targetDoc = await db.collection('users').doc(input.id).get();
+      if (!targetDoc.exists) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'User không tồn tại' });
+      }
+      if (targetDoc.data()?.role === 'admin' && ctx.userData!.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Chỉ admin mới có thể vô hiệu hóa tài khoản admin' });
+      }
 
       await adminAuth.updateUser(input.id, { disabled: true });
       await db.collection('users').doc(input.id).update({

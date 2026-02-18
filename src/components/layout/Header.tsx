@@ -36,7 +36,7 @@ export function Header() {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const { hasPermission, role, userData } = useCurrentUserPermissions();
+  const { hasPermission, hasAnyModulePermission, role, userData } = useCurrentUserPermissions();
 
   const handleLogout = async () => {
     try {
@@ -123,18 +123,22 @@ export function Header() {
           </Link>
 
           {/* Thêm mới — primary action */}
-          <button
-            onClick={() => {
-              router.push('/ledger');
-              // Dispatch custom event so ledger page can open form
-              window.dispatchEvent(new CustomEvent('open-record-form'));
-            }}
-            className="flex flex-col items-center justify-center gap-0.5 text-[10px] text-primary"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Plus className="h-5 w-5" />
-            </div>
-          </button>
+          {hasPermission('ledger', 'create') ? (
+            <button
+              onClick={() => {
+                router.push('/ledger');
+                // Dispatch custom event so ledger page can open form
+                window.dispatchEvent(new CustomEvent('open-record-form'));
+              }}
+              className="flex flex-col items-center justify-center gap-0.5 text-[10px] text-primary"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Plus className="h-5 w-5" />
+              </div>
+            </button>
+          ) : (
+            <div />
+          )}
 
           {/* Cài đặt */}
           <Link
@@ -222,7 +226,7 @@ export function Header() {
               <UserCheck className="h-4 w-4 text-muted-foreground" />
               Người nộp tiền
             </button>
-            {hasPermission('kiotviet', 'view') && (
+            {hasAnyModulePermission('kiotviet') && (
               <button
                 onClick={() => handleDrawerLink('/settings/kiotviet')}
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-accent transition-colors"

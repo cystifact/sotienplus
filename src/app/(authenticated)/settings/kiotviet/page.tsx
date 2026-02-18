@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
 
 export default function KiotVietSettingsPage() {
-  const { hasPermission, isLoading } = useCurrentUserPermissions();
+  const { hasPermission, hasAnyModulePermission, isLoading } = useCurrentUserPermissions();
 
   if (isLoading) {
     return (
@@ -22,7 +22,7 @@ export default function KiotVietSettingsPage() {
     );
   }
 
-  if (!hasPermission('kiotviet', 'view')) {
+  if (!hasAnyModulePermission('kiotviet')) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         Bạn không có quyền truy cập trang này.
@@ -30,10 +30,14 @@ export default function KiotVietSettingsPage() {
     );
   }
 
-  return <KiotVietContent />;
+  const canViewConfig = hasPermission('kiotviet', 'view');
+  const canConfigure = hasPermission('kiotviet', 'configure');
+  const canSync = hasPermission('kiotviet', 'sync');
+
+  return <KiotVietContent canViewConfig={canViewConfig} canConfigure={canConfigure} canSync={canSync} />;
 }
 
-function KiotVietContent() {
+function KiotVietContent({ canViewConfig, canConfigure, canSync }: { canViewConfig: boolean; canConfigure: boolean; canSync: boolean }) {
   const [formData, setFormData] = useState({
     clientId: '',
     clientSecret: '',
@@ -113,111 +117,120 @@ function KiotVietContent() {
     <div className="space-y-6">
       <h1 className="text-lg sm:text-2xl font-bold">Cài đặt KiotViet</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings2 className="h-5 w-5" />
-            Thông tin kết nối
-          </CardTitle>
-          <CardDescription>
-            Nhập thông tin API từ KiotViet Developer Portal
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSaveConfig} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="retailerCode">Retailer Code</Label>
-              <Input
-                id="retailerCode"
-                value={formData.retailerCode}
-                onChange={(e) => setFormData({ ...formData, retailerCode: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientId">Client ID</Label>
-              <Input
-                id="clientId"
-                value={formData.clientId}
-                onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientSecret">Client Secret</Label>
-              <Input
-                id="clientSecret"
-                type="password"
-                value={formData.clientSecret}
-                onChange={(e) => setFormData({ ...formData, clientSecret: e.target.value })}
-                placeholder={s?.hasSecret ? 'Đã lưu — nhập mới để thay đổi' : 'Nhập client secret'}
-                required={!s?.hasSecret}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button type="submit" disabled={saveMutation.isPending}>
-                {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Lưu cấu hình
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => testMutation.mutate()}
-                disabled={testMutation.isPending || !s?.configured}
-              >
-                {testMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Test kết nối
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5" />
-            Đồng bộ khách hàng
-          </CardTitle>
-          <CardDescription>
-            Đồng bộ danh sách khách hàng từ KiotViet vào hệ thống
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {s?.configured ? (
-            <>
-              <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Lần đồng bộ gần nhất</p>
-                  <p className="text-xs text-muted-foreground">
-                    {s.lastCustomerSync ? 'Đã đồng bộ' : 'Chưa đồng bộ'}
-                  </p>
-                </div>
-                {s.lastCustomerCount > 0 && (
-                  <Badge variant="secondary">
-                    {s.lastCustomerCount} khách hàng
-                  </Badge>
-                )}
+      {(canViewConfig || canConfigure) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5" />
+              Thông tin kết nối
+            </CardTitle>
+            <CardDescription>
+              Nhập thông tin API từ KiotViet Developer Portal
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSaveConfig} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="retailerCode">Retailer Code</Label>
+                <Input
+                  id="retailerCode"
+                  value={formData.retailerCode}
+                  onChange={(e) => setFormData({ ...formData, retailerCode: e.target.value })}
+                  disabled={!canConfigure}
+                  required
+                />
               </div>
-              <Button
-                onClick={() => syncMutation.mutate()}
-                disabled={syncMutation.isPending}
-              >
-                {syncMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                {syncMutation.isPending ? 'Đang đồng bộ...' : 'Đồng bộ ngay'}
-              </Button>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Vui lòng cấu hình kết nối KiotViet trước khi đồng bộ.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+              <div className="space-y-2">
+                <Label htmlFor="clientId">Client ID</Label>
+                <Input
+                  id="clientId"
+                  value={formData.clientId}
+                  onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                  disabled={!canConfigure}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientSecret">Client Secret</Label>
+                <Input
+                  id="clientSecret"
+                  type="password"
+                  value={formData.clientSecret}
+                  onChange={(e) => setFormData({ ...formData, clientSecret: e.target.value })}
+                  placeholder={s?.hasSecret ? 'Đã lưu — nhập mới để thay đổi' : 'Nhập client secret'}
+                  disabled={!canConfigure}
+                  required={!s?.hasSecret}
+                />
+              </div>
+              {canConfigure && (
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={saveMutation.isPending}>
+                    {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Lưu cấu hình
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => testMutation.mutate()}
+                    disabled={testMutation.isPending || !s?.configured}
+                  >
+                    {testMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Test kết nối
+                  </Button>
+                </div>
+              )}
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {canSync && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5" />
+              Đồng bộ khách hàng
+            </CardTitle>
+            <CardDescription>
+              Đồng bộ danh sách khách hàng từ KiotViet vào hệ thống
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {s?.configured ? (
+              <>
+                <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Lần đồng bộ gần nhất</p>
+                    <p className="text-xs text-muted-foreground">
+                      {s.lastCustomerSync ? 'Đã đồng bộ' : 'Chưa đồng bộ'}
+                    </p>
+                  </div>
+                  {s.lastCustomerCount > 0 && (
+                    <Badge variant="secondary">
+                      {s.lastCustomerCount} khách hàng
+                    </Badge>
+                  )}
+                </div>
+                <Button
+                  onClick={() => syncMutation.mutate()}
+                  disabled={syncMutation.isPending}
+                >
+                  {syncMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  {syncMutation.isPending ? 'Đang đồng bộ...' : 'Đồng bộ ngay'}
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Vui lòng cấu hình kết nối KiotViet trước khi đồng bộ.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

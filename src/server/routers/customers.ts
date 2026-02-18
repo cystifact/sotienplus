@@ -1,19 +1,31 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, requirePermission } from '../trpc';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { syncCustomers, testConnection } from '../services/kiotviet.service';
+import { hasPermission } from '../lib/permission-utils';
+
+// Customer code prefixes to exclude from search (e.g. Shopee marketplace customers)
+const EXCLUDED_CODE_PREFIXES = ['KHSPE'];
 
 export const customersRouter = router({
-  list: protectedProcedure.query(async () => {
+  list: protectedProcedure
+    .use(requirePermission('ledger', 'view'))
+    .query(async () => {
     const db = getAdminDb();
     const snapshot = await db.collection('customers')
       .where('isActive', '==', true)
       .orderBy('name')
       .get();
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    return snapshot.docs
+      .filter((doc) => {
+        const code = (doc.data().code as string) || '';
+        return !EXCLUDED_CODE_PREFIXES.some((p) => code.startsWith(p));
+      })
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
   }),
 
   sync: protectedProcedure
@@ -31,8 +43,16 @@ export const customersRouter = router({
     }),
 
   getSettings: protectedProcedure
-    .use(requirePermission('kiotviet', 'view'))
-    .query(async () => {
+    .query(async ({ ctx }) => {
+      // Require at least one kiotviet permission
+      const canView = ctx.userData?.role === 'admin' || hasPermission(ctx.permissions, 'kiotviet', 'view');
+      const canConfigure = ctx.userData?.role === 'admin' || hasPermission(ctx.permissions, 'kiotviet', 'configure');
+      const canSync = ctx.userData?.role === 'admin' || hasPermission(ctx.permissions, 'kiotviet', 'sync');
+
+      if (!canView && !canConfigure && !canSync) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Bạn không có quyền thực hiện hành động này' });
+      }
+
       const db = getAdminDb();
       const doc = await db.collection('settings').doc('kiotviet').get();
       if (!doc.exists) {
@@ -41,9 +61,10 @@ export const customersRouter = router({
       const data = doc.data()!;
       return {
         configured: true,
-        retailerCode: data.retailerCode || '',
-        clientId: data.clientId || '',
-        hasSecret: !!data.clientSecret,
+        // Only expose config details to users with view/configure permission
+        retailerCode: (canView || canConfigure) ? (data.retailerCode || '') : undefined,
+        clientId: (canView || canConfigure) ? (data.clientId || '') : undefined,
+        hasSecret: (canView || canConfigure) ? !!data.clientSecret : undefined,
         lastCustomerSync: data.lastCustomerSync || null,
         lastCustomerCount: data.lastCustomerCount || 0,
       };

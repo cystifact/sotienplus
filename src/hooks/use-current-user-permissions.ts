@@ -27,11 +27,21 @@ export function useCurrentUserPermissions() {
   const canEdit = useMemo(() => (module: string) => hasPermission(module, 'edit'), [hasPermission]);
   const canDelete = useMemo(() => (module: string) => hasPermission(module, 'delete'), [hasPermission]);
 
+  const hasAnyModulePermission = useMemo(
+    () => (module: string): boolean => {
+      if (!data) return false;
+      if (role === 'admin') return true;
+      return permissions.some((p) => p.module === module && p.granted);
+    },
+    [data, permissions, role]
+  );
+
   return useMemo(() => ({
     role,
     permissions,
     isLoading,
     hasPermission,
+    hasAnyModulePermission,
     canView,
     canCreate,
     canEdit,
@@ -40,5 +50,5 @@ export function useCurrentUserPermissions() {
     isManager: role === 'manager',
     isStaff: role === 'staff',
     userData: data,
-  }), [role, permissions, isLoading, hasPermission, canView, canCreate, canEdit, canDelete, data]);
+  }), [role, permissions, isLoading, hasPermission, hasAnyModulePermission, canView, canCreate, canEdit, canDelete, data]);
 }

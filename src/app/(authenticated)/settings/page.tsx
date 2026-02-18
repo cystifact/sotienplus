@@ -39,8 +39,12 @@ const settingsLinks = [
 ];
 
 export default function SettingsPage() {
-  const { hasPermission } = useCurrentUserPermissions();
-  const visibleLinks = settingsLinks.filter((link) => !link.module || hasPermission(link.module, link.action));
+  const { hasPermission, hasAnyModulePermission } = useCurrentUserPermissions();
+  const visibleLinks = settingsLinks.filter((link) => {
+    if (!link.module) return true;
+    if (link.module === 'kiotviet') return hasAnyModulePermission('kiotviet');
+    return hasPermission(link.module, link.action!);
+  });
 
   return (
     <div>

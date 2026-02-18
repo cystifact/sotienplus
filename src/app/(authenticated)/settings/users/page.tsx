@@ -21,12 +21,14 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Search, Shield, User as UserIcon, ArrowUpDown, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Search, Shield, User as UserIcon, ArrowUpDown, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
 import { UserPermissionsGrid } from '@/components/UserPermissionsGrid';
 import type { Permission, UserRole } from '@/lib/permissions-config';
 import { cn } from '@/lib/utils';
+
+const EMPTY_PERMISSIONS: Permission[] = [];
 
 interface UserData {
   id: string;
@@ -77,6 +79,8 @@ function UsersContent() {
     role: 'staff' as UserRole,
   });
   const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const { isAdmin } = useCurrentUserPermissions();
 
@@ -136,6 +140,8 @@ function UsersContent() {
     setEditingUser(null);
     setActiveTab('info');
     setNewPassword('');
+    setShowPassword(false);
+    setShowNewPassword(false);
   };
 
   const handleRowClick = (user: UserData) => {
@@ -389,21 +395,35 @@ function UsersContent() {
                       </p>
                       <div className="space-y-2">
                         <Label htmlFor="newPassword">Mật khẩu mới</Label>
-                        <Input
-                          id="newPassword"
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          required
-                          minLength={6}
-                        />
-                        <p className="text-xs text-muted-foreground">Tối thiểu 6 ký tự</p>
+                        <div className="relative">
+                          <Input
+                            id="newPassword"
+                            type={showNewPassword ? 'text' : 'password'}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                            className={cn('pr-10', newPassword && newPassword.length < 8 && 'border-red-500')}
+                          />
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                          >
+                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {newPassword && newPassword.length < 8 ? (
+                          <p className="text-xs text-red-500">Mật khẩu phải có ít nhất 8 ký tự ({newPassword.length}/8)</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Tối thiểu 8 ký tự</p>
+                        )}
                       </div>
                       <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" onClick={() => setActiveTab('info')}>
                           Quay lại
                         </Button>
-                        <Button type="submit" disabled={updatePasswordMutation.isPending || !newPassword}>
+                        <Button type="submit" disabled={updatePasswordMutation.isPending || !newPassword || newPassword.length < 8}>
                           Đổi mật khẩu
                         </Button>
                       </div>
@@ -414,7 +434,7 @@ function UsersContent() {
                     <TabsContent value="permissions" className="space-y-4 mt-4">
                       <UserPermissionsGrid
                         role={(editingUser.role as UserRole) || 'staff'}
-                        currentPermissions={editingUser.permissions || []}
+                        currentPermissions={editingUser.permissions ?? EMPTY_PERMISSIONS}
                         onChange={(perms) => {
                           if (!editingUser) return;
                           updatePermissionsMutation.mutate({
@@ -494,21 +514,35 @@ function UsersContent() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Mật khẩu</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      required
-                      minLength={6}
-                    />
-                    <p className="text-xs text-muted-foreground">Tối thiểu 6 ký tự</p>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required
+                        className={cn('pr-10', formData.password && formData.password.length < 8 && 'border-red-500')}
+                      />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {formData.password && formData.password.length < 8 ? (
+                      <p className="text-xs text-red-500">Mật khẩu phải có ít nhất 8 ký tự ({formData.password.length}/8)</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Tối thiểu 8 ký tự</p>
+                    )}
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                       Hủy
                     </Button>
-                    <Button type="submit" disabled={createMutation.isPending}>
+                    <Button type="submit" disabled={createMutation.isPending || formData.password.length < 8}>
                       Thêm
                     </Button>
                   </div>

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Check, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, fuzzyMatch } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 
@@ -18,25 +18,6 @@ interface ComboboxProps {
   onChange: (value: string) => void
   placeholderText?: string
   disabled?: boolean
-}
-
-// Normalize Vietnamese text for fuzzy matching
-function normalizeText(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-}
-
-// Fuzzy search: check if all search words exist in text (in any order)
-function fuzzyMatch(text: string, search: string): boolean {
-  const normalizedText = normalizeText(text)
-  const searchWords = normalizeText(search).split(/\s+/).filter(Boolean)
-
-  // All search words must be found in text
-  return searchWords.every(word => normalizedText.includes(word))
 }
 
 export const Combobox = React.forwardRef<HTMLInputElement, ComboboxProps>(
@@ -175,17 +156,17 @@ export const Combobox = React.forwardRef<HTMLInputElement, ComboboxProps>(
           onKeyDown={handleKeyDown}
           placeholder={placeholderText || "Nhập để tìm..."}
           disabled={disabled}
-          className={cn("pr-8", value ? "border-primary" : "")}
+          className={cn("pr-10", value ? "border-primary" : "")}
         />
         {value && !disabled && (
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="absolute right-0 top-0 h-full w-8 hover:bg-transparent"
+            className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
             onClick={handleClear}
           >
-            <X className="h-4 w-4 text-muted-foreground" />
+            <X className="h-5 w-5 text-muted-foreground" />
           </Button>
         )}
       </div>

@@ -3,6 +3,7 @@ import { router, protectedProcedure, requirePermission } from '../trpc';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { TRPCError } from '@trpc/server';
 import { FieldValue } from 'firebase-admin/firestore';
+import { hasPermission } from '../lib/permission-utils';
 
 // Customer codes that should skip RPA (e.g. internal/transfer accounts)
 const RPA_SKIP_CODE_PREFIXES = ['XB'];
@@ -20,6 +21,7 @@ function getVietnamToday(): string {
 
 export const cashRecordsRouter = router({
   list: protectedProcedure
+    .use(requirePermission('ledger', 'view'))
     .input(
       z.object({
         date: z.string().optional(),
@@ -397,8 +399,9 @@ export const cashRecordsRouter = router({
     }),
 
   dailySummary: protectedProcedure
+    .use(requirePermission('ledger', 'view'))
     .input(z.object({ date: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const db = getAdminDb();
       const snapshot = await db
         .collection('cash_records')
@@ -407,20 +410,22 @@ export const cashRecordsRouter = router({
 
       const activeDocs = snapshot.docs.filter((doc) => doc.data().isActive !== false);
 
-      let totalAmount = 0;
       let checkActualCount = 0;
       let checkKiotVietCount = 0;
       const total = activeDocs.length;
 
+      const canViewTotal = ctx.userData?.role === 'admin' || hasPermission(ctx.permissions, 'ledger', 'view_total');
+
+      let totalAmount = 0;
       activeDocs.forEach((doc) => {
         const data = doc.data();
-        totalAmount += data.amount || 0;
+        if (canViewTotal) totalAmount += data.amount || 0;
         if (data.checkActualReceived) checkActualCount++;
         if (data.checkKiotVietEntered) checkKiotVietCount++;
       });
 
       return {
-        totalAmount: Math.round(totalAmount),
+        totalAmount: canViewTotal ? Math.round(totalAmount) : 0,
         totalRecords: total,
         checkActualCount,
         checkKiotVietCount,
@@ -428,6 +433,7 @@ export const cashRecordsRouter = router({
     }),
 
   checkDuplicate: protectedProcedure
+    .use(requirePermission('ledger', 'view'))
     .input(
       z.object({
         date: z.string(),
@@ -457,6 +463,7 @@ export const cashRecordsRouter = router({
     }),
 
   checkDuplicateBatch: protectedProcedure
+    .use(requirePermission('ledger', 'view'))
     .input(
       z.object({
         date: z.string(),
@@ -592,6 +599,90 @@ export const cashRecordsRouter = router({
       }
 
       return { retried };
+    }),
+
+  rpaClaimNext: protectedProcedure
+    .use(requirePermission('ledger', 'rpa_sync'))
+    .input(z.object({ date: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = getAdminDb();
+
+      // Use a transaction to atomically claim the next pending record
+      const result = await db.runTransaction(async (txn) => {
+        const snapshot = await txn.get(
+          db.collection('cash_records')
+            .where('date', '==', input.date)
+            .where('rpaStatus', '==', 'pending')
+            .orderBy('rpaQueuedAt', 'asc')
+            .limit(1)
+        );
+
+        if (snapshot.empty) return null;
+
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+
+        if (data.isActive === false || shouldSkipRpa(data.customerCode)) {
+          return null;
+        }
+
+        txn.update(doc.ref, {
+          rpaStatus: 'processing',
+          rpaProcessingBy: ctx.userData!.id,
+          rpaProcessingAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: ctx.userData!.id,
+        });
+
+        return {
+          id: doc.id,
+          customerName: data.customerName,
+          customerCode: data.customerCode,
+          amount: data.amount,
+          date: data.date,
+        };
+      });
+
+      return result;
+    }),
+
+  rpaComplete: protectedProcedure
+    .use(requirePermission('ledger', 'rpa_sync'))
+    .input(
+      z.object({
+        id: z.string(),
+        status: z.enum(['success', 'failed']),
+        error: z.string().max(500).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = getAdminDb();
+      const docRef = db.collection('cash_records').doc(input.id);
+      const doc = await docRef.get();
+
+      if (!doc.exists || doc.data()?.isActive === false) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Bản ghi không tồn tại' });
+      }
+
+      const data = doc.data()!;
+      const updateData: Record<string, any> = {
+        rpaStatus: input.status,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: ctx.userData!.id,
+      };
+
+      if (input.status === 'success') {
+        updateData.rpaSyncAt = FieldValue.serverTimestamp();
+        updateData.rpaOriginalAmount = data.amount;
+        updateData.rpaOriginalCustomerName = data.customerName;
+        updateData.rpaError = null;
+      } else {
+        updateData.rpaError = input.error || 'Lỗi không xác định';
+        updateData.rpaRetryCount = (data.rpaRetryCount || 0) + 1;
+      }
+
+      await docRef.update(updateData);
+      return { success: true };
     }),
 
   confirmKiotVietCorrected: protectedProcedure

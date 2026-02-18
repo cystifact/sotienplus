@@ -79,6 +79,10 @@ async function fetchAllCustomers(config: KiotVietConfig, token: string) {
     const customerData = data.data || [];
 
     for (const c of customerData) {
+      // Skip inactive customers or marketplace customers (e.g. Shopee)
+      if (c.isActive === false) continue;
+      if (c.code && c.code.startsWith('KHSPE')) continue;
+
       customers.push({
         id: c.id,
         code: c.code,
@@ -144,6 +148,31 @@ export const scheduledCustomerSync = onSchedule(
           }, { merge: true });
         }
         await batch.commit();
+      }
+
+      // Mark customers not in this sync as inactive
+      const syncedIds = new Set(customers.map((c: any) => String(c.id)));
+      const allCustomersDocs = await db.collection('customers')
+        .where('isActive', '==', true)
+        .select()
+        .get();
+      const staleRefs = allCustomersDocs.docs
+        .filter((doc) => !syncedIds.has(doc.id))
+        .map((doc) => doc.ref);
+
+      if (staleRefs.length > 0) {
+        const staleChunks: FirebaseFirestore.DocumentReference[][] = [];
+        for (let i = 0; i < staleRefs.length; i += 500) {
+          staleChunks.push(staleRefs.slice(i, i + 500));
+        }
+        for (const chunk of staleChunks) {
+          const batch = db.batch();
+          for (const ref of chunk) {
+            batch.update(ref, { isActive: false, updatedAt: now });
+          }
+          await batch.commit();
+        }
+        console.log(`Marked ${staleRefs.length} stale customers as inactive`);
       }
 
       // Update last sync time

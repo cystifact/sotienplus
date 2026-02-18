@@ -91,7 +91,7 @@ export function RecordForm({
                 : 'Thêm bản ghi mới'}
             </DialogTitle>
             {!isEditMode && validRowCount > 0 && (
-              <Badge variant="secondary" className="text-xs font-normal">
+              <Badge variant="secondary" className="text-xs font-normal mr-6">
                 {validRowCount} dòng · {formatCurrency(totalAmount)}
               </Badge>
             )}
@@ -113,14 +113,14 @@ export function RecordForm({
                     <div>
                       {isRed ? (
                         <p>
-                          <strong>So tien se thay doi: {formatNumber(origAmount)} → {formatNumber(currentAmount)}.</strong>
-                          {' '}BAT BUOC phai sua phieu thu KiotViet sau khi luu!
+                          <strong>Số tiền sẽ thay đổi: {formatNumber(origAmount)} → {formatNumber(currentAmount)}.</strong>
+                          {' '}BẮT BUỘC phải sửa phiếu thu KiotViet sau khi lưu!
                         </p>
                       ) : (
                         <p>
-                          Ban ghi nay da duoc thanh toan trong KiotViet
-                          {origAmount != null ? ` (so tien: ${formatNumber(origAmount)})` : ''}.
-                          {' '}Neu thay doi so tien hoac khach hang, hay nho sua phieu thu trong KiotViet.
+                          Bản ghi này đã được thanh toán trong KiotViet
+                          {origAmount != null ? ` (số tiền: ${formatNumber(origAmount)})` : ''}.
+                          {' '}Nếu thay đổi số tiền hoặc khách hàng, hãy nhớ sửa phiếu thu trong KiotViet.
                         </p>
                       )}
                     </div>
@@ -163,7 +163,7 @@ export function RecordForm({
           <Separator />
 
           {/* Rows - scrollable */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 sm:px-6">
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 sm:px-6">
             {state.rows.map((row, index) => (
               <BatchRow
                 key={row.id}
@@ -184,11 +184,11 @@ export function RecordForm({
             {!isEditMode && !isViewOnly && state.rows.length < MAX_ROWS && (
               <Button
                 type="button"
-                variant="outline"
-                className="w-full border-dashed h-9 text-sm text-muted-foreground"
+                variant="secondary"
+                className="w-full h-11 text-sm border border-dashed border-primary/30"
                 onClick={handleAddRow}
               >
-                <Plus className="w-4 h-4 mr-1" />
+                <Plus className="w-4 h-4 mr-1.5" />
                 Thêm dòng
               </Button>
             )}

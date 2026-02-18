@@ -11,7 +11,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -47,10 +47,14 @@ export default function CollectorsSettingsPage() {
     );
   }
 
-  return <CollectorsContent />;
+  const canCreate = hasPermission('collectors', 'create');
+  const canEdit = hasPermission('collectors', 'edit');
+  const canDelete = hasPermission('collectors', 'delete');
+
+  return <CollectorsContent canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} />;
 }
 
-function CollectorsContent() {
+function CollectorsContent({ canCreate, canEdit, canDelete }: { canCreate: boolean; canEdit: boolean; canDelete: boolean }) {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCollector, setEditingCollector] = useState<CollectorData | null>(null);
@@ -147,6 +151,12 @@ function CollectorsContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-lg sm:text-2xl font-bold">Người nộp tiền</h1>
+        {canCreate && (
+          <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true); }}>
+            <PlusCircle className="w-4 h-4 mr-1" />
+            Thêm mới
+          </Button>
+        )}
         <Dialog
           open={dialogOpen}
           onOpenChange={(open) => {
@@ -154,12 +164,6 @@ function CollectorsContent() {
             if (!open) resetForm();
           }}
         >
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <PlusCircle className="w-4 h-4 mr-1" />
-              Thêm mới
-            </Button>
-          </DialogTrigger>
           <DialogContent className="max-w-md w-[calc(100%-2rem)] sm:w-full rounded-lg">
             <DialogHeader>
               <DialogTitle>
@@ -173,6 +177,7 @@ function CollectorsContent() {
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  disabled={!!editingCollector && !canEdit}
                   required
                 />
               </div>
@@ -182,6 +187,7 @@ function CollectorsContent() {
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  disabled={!!editingCollector && !canEdit}
                   placeholder="Tùy chọn"
                 />
               </div>
@@ -201,7 +207,7 @@ function CollectorsContent() {
               )}
 
               <div className={editingCollector ? 'flex justify-between pt-2' : 'flex justify-end gap-2 pt-2'}>
-                {editingCollector && (
+                {editingCollector && canDelete && (
                   <Button
                     type="button"
                     variant={editingCollector.isActive ? 'destructive' : 'default'}
@@ -215,12 +221,14 @@ function CollectorsContent() {
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                     {editingCollector ? 'Đóng' : 'Hủy'}
                   </Button>
-                  <Button
-                    type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                  >
-                    {editingCollector ? 'Cập nhật' : 'Thêm'}
-                  </Button>
+                  {(!editingCollector || canEdit) && (
+                    <Button
+                      type="submit"
+                      disabled={createMutation.isPending || updateMutation.isPending}
+                    >
+                      {editingCollector ? 'Cập nhật' : 'Thêm'}
+                    </Button>
+                  )}
                 </div>
               </div>
             </form>

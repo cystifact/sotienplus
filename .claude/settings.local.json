@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(node scripts/generate-icons.mjs:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(npx firebase firestore:indexes:*)",
+      "Bash(npx firebase deploy:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(npx next build:*)",
+      "Bash(gh repo view:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git clone:*)",
+      "Bash(npx tsc:*)",
+      "Bash(venvScriptspip install pystray)",
+      "Bash(./venv/Scripts/pip.exe install:*)",
+      "Bash(\"C:/Users/PC/Dropbox/Nhu Tien/kiotviet-payment-automation/venv/Scripts/pip.exe\" install pystray)",
+      "Bash(cmd /c:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(\"C:/Users/PC/Dropbox/Nhu Tien/kiotviet-payment-automation/venv/Scripts/python.exe\" -m pip install pystray)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(copy \"d:\\\\SoGhiTien\\\\sotienplus-service-account-key.json\" \"C:\\\\Users\\\\PC\\\\Dropbox\\\\Nhu Tien\\\\kiotviet-payment-automation\\\\sotienplus-service-account-key.json\")",
+      "Bash(powershell -Command \"$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut\\(\"\"$env:APPDATA\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup\\\\RPA Tray.lnk\"\"\\); $Shortcut.TargetPath = ''C:\\\\Users\\\\PC\\\\Dropbox\\\\Nhu Tien\\\\kiotviet-payment-automation\\\\run_tray.bat''; $Shortcut.WorkingDirectory = ''C:\\\\Users\\\\PC\\\\Dropbox\\\\Nhu Tien\\\\kiotviet-payment-automation''; $Shortcut.WindowStyle = 7; $Shortcut.Save\\(\\); Write-Host ''Shortcut created''\")",
+      "Bash(powershell -File - <<'PS1'\n$WshShell = New-Object -ComObject WScript.Shell\n$StartupPath = [System.IO.Path]::Combine\\($env:APPDATA, \"Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup\\\\RPA Tray.lnk\"\\)\n$Shortcut = $WshShell.CreateShortcut\\($StartupPath\\)\n$Shortcut.TargetPath = \"C:\\\\Users\\\\PC\\\\Dropbox\\\\Nhu Tien\\\\kiotviet-payment-automation\\\\run_tray.bat\"\n$Shortcut.WorkingDirectory = \"C:\\\\Users\\\\PC\\\\Dropbox\\\\Nhu Tien\\\\kiotviet-payment-automation\"\n$Shortcut.WindowStyle = 7\n$Shortcut.Save\\(\\)\nWrite-Host \"Shortcut created at: $StartupPath\"\nPS1)",
+      "Bash(dir:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(node -e:*)",
+      "Bash(powershell:*)"
+    ]
+  }
+}

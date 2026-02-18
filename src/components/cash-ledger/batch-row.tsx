@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useRef, useMemo, useCallback } from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import React, { useRef, useMemo, useCallback, useState } from 'react';
+import { X, AlertTriangle, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Combobox } from '@/components/ui/combobox';
 import { NumberInput } from '@/components/ui/number-input';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import type { BatchRow as BatchRowState } from './use-record-form';
 
 interface ComboboxOption {
@@ -42,6 +42,7 @@ export const BatchRow = React.memo(function BatchRow({
   onAcknowledgeDuplicate,
 }: BatchRowProps) {
   const amountRef = useRef<HTMLInputElement>(null);
+  const [showNotes, setShowNotes] = useState(!!row.notes);
 
   const selectedCustomer = useMemo(() => {
     if (!row.customerId || !customers) return null;
@@ -60,39 +61,42 @@ export const BatchRow = React.memo(function BatchRow({
   );
 
   return (
-    <div className="rounded-lg border bg-card p-3 space-y-2">
-      {/* Row header */}
-      <div className="flex items-center justify-between">
+    <div className={cn(
+      "rounded-lg border p-3 space-y-2",
+      index % 2 === 0 ? "bg-card" : "bg-muted/30"
+    )}>
+      {/* Customer line with inline index, debt badge, and remove button */}
+      <div>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
-          {selectedCustomer?.debt > 0 && (
-            <Badge variant="destructive" className="text-xs">
-              Nợ: {formatCurrency(selectedCustomer.debt)}
-            </Badge>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
+            {selectedCustomer?.debt > 0 && (
+              <Badge variant="destructive" className="text-xs py-0 px-1.5">
+                Nợ: {formatCurrency(selectedCustomer.debt)}
+              </Badge>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <Combobox
+              options={customerOptions}
+              value={row.customerId}
+              onChange={handleCustomerChange}
+              placeholderText="Tìm khách hàng..."
+              disabled={isViewOnly}
+            />
+          </div>
+          {showRemove && !isViewOnly && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => onRemove(row.id)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           )}
         </div>
-        {showRemove && !isViewOnly && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => onRemove(row.id)}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        )}
-      </div>
-
-      {/* Customer */}
-      <div>
-        <Combobox
-          options={customerOptions}
-          value={row.customerId}
-          onChange={handleCustomerChange}
-          placeholderText="Tìm khách hàng..."
-          disabled={isViewOnly}
-        />
         {!row.customerId && (
           <Input
             value={row.customerName}
@@ -107,9 +111,9 @@ export const BatchRow = React.memo(function BatchRow({
         )}
       </div>
 
-      {/* Amount + Notes on same row */}
-      <div className="flex gap-2">
-        <div className="flex-1">
+      {/* Amount with note toggle */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
           <NumberInput
             ref={amountRef}
             value={row.amount}
@@ -122,16 +126,35 @@ export const BatchRow = React.memo(function BatchRow({
             <p className="text-xs text-destructive mt-1">{row.errors.amount}</p>
           )}
         </div>
-        <div className="flex-1">
-          <Input
-            value={row.notes}
-            onChange={(e) => onUpdate(row.id, 'notes', e.target.value)}
-            placeholder="Ghi chú"
-            className="text-sm"
-            disabled={isViewOnly}
-          />
-        </div>
+        {!isViewOnly && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-10 w-10 shrink-0",
+              row.notes
+                ? "text-primary bg-primary/10 hover:bg-primary/20"
+                : "text-muted-foreground"
+            )}
+            onClick={() => setShowNotes((prev) => !prev)}
+            title="Ghi chú"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </Button>
+        )}
       </div>
+
+      {/* Collapsible notes field */}
+      {(showNotes || (isViewOnly && row.notes)) && (
+        <Input
+          value={row.notes}
+          onChange={(e) => onUpdate(row.id, 'notes', e.target.value)}
+          placeholder="Ghi chú"
+          className="text-sm"
+          disabled={isViewOnly}
+        />
+      )}
 
       {/* Duplicate warning */}
       {row.duplicateWarning && !row.duplicateAcknowledged && (

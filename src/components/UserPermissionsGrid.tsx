@@ -16,6 +16,7 @@ import {
   Download,
   Bot,
   Settings,
+  DollarSign,
 } from 'lucide-react';
 import {
   Permission,
@@ -40,6 +41,7 @@ const getActionIcon = (action: string) => {
     case 'delete': return <Trash2 className="h-3.5 w-3.5" />;
     case 'check': return <CheckSquare className="h-3.5 w-3.5" />;
     case 'bulk_check': return <CheckCheck className="h-3.5 w-3.5" />;
+    case 'view_total': return <DollarSign className="h-3.5 w-3.5" />;
     case 'export': return <Download className="h-3.5 w-3.5" />;
     case 'rpa_sync': return <Bot className="h-3.5 w-3.5" />;
     case 'configure': return <Settings className="h-3.5 w-3.5" />;
@@ -56,6 +58,12 @@ export function UserPermissionsGrid({
 }: UserPermissionsGridProps) {
   const [permissions, setPermissions] = useState<Permission[]>([]);
 
+  // Serialize to stable key so useEffect only fires on actual data changes,
+  // not on new array references (e.g. `|| []` creating new empty arrays)
+  const currentPermsKey = currentPermissions
+    .map((p) => `${p.module}:${p.action}:${p.granted}`)
+    .join(',');
+
   useEffect(() => {
     const defaults = getDefaultPermissions(role);
     const overrideMap = new Map(currentPermissions.map((p) => [`${p.module}:${p.action}`, p.granted]));
@@ -64,7 +72,8 @@ export function UserPermissionsGrid({
       return overrideGranted !== undefined ? { ...p, granted: overrideGranted } : p;
     });
     setPermissions(effective);
-  }, [role, currentPermissions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, currentPermsKey]);
 
   const emitOverrides = (updated: Permission[]) => {
     const defaults = getDefaultPermissions(role);
@@ -140,12 +149,7 @@ export function UserPermissionsGrid({
                 </CardTitle>
               </CardHeader>
               <CardContent className="py-2 px-4 space-y-1.5">
-                {modulePerms.map((perm) => {
-                  const defaultGranted = getDefaultPermissions(role)
-                    .find((d) => d.module === perm.module && d.action === perm.action)?.granted ?? false;
-                  const isOverridden = perm.granted !== defaultGranted;
-
-                  return (
+                {modulePerms.map((perm) => (
                     <div
                       key={`${perm.module}:${perm.action}`}
                       className="flex items-center gap-2"
@@ -169,15 +173,9 @@ export function UserPermissionsGrid({
                         <span className={perm.granted ? 'font-medium' : 'text-muted-foreground'}>
                           {perm.label}
                         </span>
-                        {isOverridden && (
-                          <Badge variant="outline" className="text-[9px] h-4 px-1 ml-auto">
-                            Tùy chỉnh
-                          </Badge>
-                        )}
                       </Label>
                     </div>
-                  );
-                })}
+                ))}
               </CardContent>
             </Card>
           );
