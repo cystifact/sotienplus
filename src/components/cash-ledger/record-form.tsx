@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Combobox } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, Loader2, Plus } from 'lucide-react';
+import { AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { useRecordForm } from './use-record-form';
 import { BatchRow } from './batch-row';
@@ -24,6 +24,8 @@ interface RecordFormProps {
   editRecord?: any;
   defaultDate?: string;
   canEdit: boolean;
+  canDelete?: boolean;
+  onDelete?: (record: any) => void;
 }
 
 const MAX_ROWS = 50;
@@ -34,6 +36,8 @@ export function RecordForm({
   editRecord,
   defaultDate,
   canEdit,
+  canDelete,
+  onDelete,
 }: RecordFormProps) {
   const {
     state,
@@ -197,8 +201,24 @@ export function RecordForm({
           {/* Footer - fixed */}
           <div className="border-t px-4 py-3 sm:px-6">
             <div className="flex gap-2">
+              {isEditMode && canDelete && onDelete && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => {
+                    onDelete(editRecord);
+                    onOpenChange(false);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Xóa
+                </Button>
+              )}
+              <div className="flex-1" />
               {!isViewOnly && (
-                <Button type="submit" className="flex-1" disabled={isPending}>
+                <Button type="submit" size="sm" disabled={isPending}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isEditMode
                     ? 'Cập nhật'
@@ -210,8 +230,8 @@ export function RecordForm({
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={handleClose}
-                className={isViewOnly ? 'flex-1' : ''}
               >
                 {isViewOnly ? 'Đóng' : 'Hủy'}
               </Button>

@@ -25,19 +25,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   Plus,
   Download,
   CheckSquare,
-  MoreVertical,
-  Edit,
-  Trash2,
   Loader2,
   BookOpen,
   Bot,
@@ -87,7 +77,6 @@ export default function LedgerPage() {
   const canExport = hasPermission('ledger', 'export');
   const canRpaSync = hasPermission('ledger', 'rpa_sync');
   const canSyncKiotViet = hasPermission('kiotviet', 'sync');
-  const hasAnyRowAction = canEditRecord || canDelete || canRpaSync;
 
   // Listen for bottom nav "+" button event
   const openNewForm = useCallback(() => {
@@ -120,10 +109,6 @@ export default function LedgerPage() {
     },
   });
 
-  const { data: summary } = trpc.cashRecords.dailySummary.useQuery(
-    { date: dateRange.from },
-    { enabled: isSingleDay && !!dateRange.from }
-  );
 
   const { data: collectors } = trpc.collectors.list.useQuery();
 
@@ -145,6 +130,13 @@ export default function LedgerPage() {
       });
     }
 
+    // Sort records needing KiotViet correction to the top
+    result.sort((a: any, b: any) => {
+      const aNeedsCorrection = a.rpaNeedsKiotVietCorrection && !a.rpaKiotVietCorrected ? 1 : 0;
+      const bNeedsCorrection = b.rpaNeedsKiotVietCorrection && !b.rpaKiotVietCorrected ? 1 : 0;
+      return bNeedsCorrection - aNeedsCorrection;
+    });
+
     return result;
   }, [records, collectorSearch, customerSearch]);
 
@@ -160,7 +152,7 @@ export default function LedgerPage() {
   const deleteMutation = trpc.cashRecords.delete.useMutation({
     onSuccess: () => {
       utils.cashRecords.list.invalidate();
-      utils.cashRecords.dailySummary.invalidate();
+
       toast.success('Đã xóa bản ghi');
       setDeleteRecord(null);
     },
@@ -170,7 +162,7 @@ export default function LedgerPage() {
   const toggleCheckMutation = trpc.cashRecords.toggleCheck.useMutation({
     onSuccess: () => {
       utils.cashRecords.list.invalidate();
-      utils.cashRecords.dailySummary.invalidate();
+
     },
     onError: (err) => toast.error(err.message),
   });
@@ -178,7 +170,7 @@ export default function LedgerPage() {
   const bulkCheckMutation = trpc.cashRecords.bulkCheck.useMutation({
     onSuccess: (data) => {
       utils.cashRecords.list.invalidate();
-      utils.cashRecords.dailySummary.invalidate();
+
       toast.success(`Đã cập nhật ${data.updated} bản ghi`);
     },
     onError: (err) => toast.error(err.message),
@@ -267,9 +259,17 @@ export default function LedgerPage() {
     toast.success('Đã xuất file Excel');
   };
 
+  // Get unique dates from current records for range-mode bulk operations
+  const uniqueDates = useMemo(() => {
+    if (isSingleDay) return [dateRange.from];
+    if (!records) return [];
+    return [...new Set((records as any[]).map((r: any) => r.date))];
+  }, [records, isSingleDay, dateRange.from]);
+
   const handleBulkCheck = (field: 'checkActualReceived' | 'checkKiotVietEntered') => {
-    if (!isSingleDay) return;
-    bulkCheckMutation.mutate({ date: dateRange.from, field, value: true });
+    uniqueDates.forEach((date) => {
+      bulkCheckMutation.mutate({ date, field, value: true });
+    });
   };
 
   // Compute RPA stats from current records
@@ -288,6 +288,18 @@ export default function LedgerPage() {
       if (r.rpaNeedsKiotVietCorrection && !r.rpaKiotVietCorrected) needsCorrection++;
     });
     return { pending, processing, success, failed, needsCorrection, failedIds };
+  }, [records]);
+
+  // Client-side summary (works for both single day and range)
+  const recordsSummary = useMemo(() => {
+    if (!records || (records as any[]).length === 0) return null;
+    const arr = records as any[];
+    return {
+      totalAmount: arr.reduce((sum, r) => sum + (r.amount || 0), 0),
+      totalRecords: arr.length,
+      checkActualCount: arr.filter((r) => r.checkActualReceived).length,
+      checkKiotVietCount: arr.filter((r) => r.checkKiotVietEntered || r.rpaStatus === 'success').length,
+    };
   }, [records]);
 
   const getRpaStatusBadge = (record: any) => {
@@ -422,17 +434,19 @@ export default function LedgerPage() {
                   <span className="hidden sm:inline">Excel</span>
                 </Button>
               )}
-              {canRpaSync && isSingleDay && (
+              {canRpaSync && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    markForSyncMutation.mutate({ date: dateRange.from }, {
-                      onSuccess: (data) => {
-                        if (data.marked === 0) {
-                          toast.info('Không có bản ghi cần thanh toán KiotViet');
-                        }
-                      },
+                    uniqueDates.forEach((date) => {
+                      markForSyncMutation.mutate({ date }, {
+                        onSuccess: (data) => {
+                          if (data.marked === 0 && uniqueDates.length === 1) {
+                            toast.info('Không có bản ghi cần thanh toán KiotViet');
+                          }
+                        },
+                      });
                     });
                   }}
                   disabled={markForSyncMutation.isPending}
@@ -447,7 +461,7 @@ export default function LedgerPage() {
                   <span className="sm:hidden">KV</span>
                 </Button>
               )}
-              {canBulkCheck && isSingleDay && (
+              {canBulkCheck && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -463,7 +477,7 @@ export default function LedgerPage() {
           </div>
 
           {/* Summary Card */}
-          {summary && isSingleDay && (
+          {recordsSummary && (
             <Card>
               <CardContent className="py-3 px-4">
                 <div className="flex flex-wrap items-center gap-4 text-sm">
@@ -471,12 +485,12 @@ export default function LedgerPage() {
                     <div>
                       <span className="text-muted-foreground">Tổng: </span>
                       <span className="font-bold text-lg text-primary">
-                        {formatCurrency(summary.totalAmount)}
+                        {formatCurrency(recordsSummary.totalAmount)}
                       </span>
                     </div>
                   )}
                   <div className="text-muted-foreground">
-                    {summary.totalRecords} bản ghi
+                    {recordsSummary.totalRecords} bản ghi
                   </div>
                   {canCheck && (
                     <>
@@ -484,23 +498,23 @@ export default function LedgerPage() {
                         variant="outline"
                         className={cn(
                           'text-xs',
-                          summary.checkActualCount === summary.totalRecords
+                          recordsSummary.checkActualCount === recordsSummary.totalRecords
                             ? 'border-green-300 text-green-600'
                             : ''
                         )}
                       >
-                        Thực nhận {summary.checkActualCount}/{summary.totalRecords}
+                        Thực nhận {recordsSummary.checkActualCount}/{recordsSummary.totalRecords}
                       </Badge>
                       <Badge
                         variant="outline"
                         className={cn(
                           'text-xs',
-                          summary.checkKiotVietCount === summary.totalRecords
+                          recordsSummary.checkKiotVietCount === recordsSummary.totalRecords
                             ? 'border-green-300 text-green-600'
                             : ''
                         )}
                       >
-                        KiotViet {summary.checkKiotVietCount}/{summary.totalRecords}
+                        KiotViet {recordsSummary.checkKiotVietCount}/{recordsSummary.totalRecords}
                       </Badge>
                     </>
                   )}
@@ -510,7 +524,7 @@ export default function LedgerPage() {
           )}
 
           {/* RPA Status Panel */}
-          {isSingleDay && records && (records as any[]).length > 0 && (rpaStats.pending > 0 || rpaStats.processing > 0 || rpaStats.failed > 0 || rpaStats.needsCorrection > 0) && (
+          {records && (records as any[]).length > 0 && (rpaStats.pending > 0 || rpaStats.processing > 0 || rpaStats.failed > 0 || rpaStats.needsCorrection > 0) && (
             <Card className="border-dashed">
               <CardContent className="py-2 px-4">
                 <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -584,14 +598,16 @@ export default function LedgerPage() {
                       <TableHead className="font-semibold text-center w-24">KiotViet</TableHead>
                       <TableHead className="font-semibold text-center w-12" title="Thực nhận">TN</TableHead>
                       <TableHead className="font-semibold">Ghi chú</TableHead>
-                      {hasAnyRowAction && <TableHead className="w-10" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredRecords.map((record: any) => (
                       <TableRow
                         key={record.id}
-                        className={canEditRecord ? 'cursor-pointer hover:bg-accent/50' : ''}
+                        className={cn(
+                          canEditRecord && 'cursor-pointer hover:bg-accent/50',
+                          record.rpaNeedsKiotVietCorrection && !record.rpaKiotVietCorrected && 'border-l-2 border-l-orange-400 bg-orange-50/50'
+                        )}
                         onClick={canEditRecord ? () => handleEdit(record) : undefined}
                       >
                         {!isSingleDay && (
@@ -641,58 +657,6 @@ export default function LedgerPage() {
                         <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
                           {record.notes || ''}
                         </TableCell>
-                        {hasAnyRowAction && (
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Tùy chọn">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {canEditRecord && (
-                                  <DropdownMenuItem onClick={() => handleEdit(record)}>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Sửa
-                                  </DropdownMenuItem>
-                                )}
-                                {canDelete && (
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => setDeleteRecord(record)}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Xóa
-                                  </DropdownMenuItem>
-                                )}
-                                {canRpaSync && record.customerCode && (!record.rpaStatus || record.rpaStatus === 'failed') && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="text-blue-600"
-                                      onClick={() => retryFailedMutation.mutate({ ids: [record.id] })}
-                                    >
-                                      <Bot className="h-4 w-4 mr-2" />
-                                      Thanh toán KV
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                                {canRpaSync && record.rpaNeedsKiotVietCorrection && !record.rpaKiotVietCorrected && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="text-orange-600"
-                                      onClick={() => confirmCorrectedMutation.mutate({ id: record.id })}
-                                    >
-                                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                                      Đã sửa KV
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -704,7 +668,11 @@ export default function LedgerPage() {
                 {filteredRecords.map((record: any) => (
                   <Card
                     key={record.id}
-                    className={cn('transition-colors', canEditRecord && 'cursor-pointer hover:bg-accent/50')}
+                    className={cn(
+                      'transition-colors',
+                      canEditRecord && 'cursor-pointer hover:bg-accent/50',
+                      record.rpaNeedsKiotVietCorrection && !record.rpaKiotVietCorrected && 'border-l-2 border-l-orange-400 bg-orange-50/50'
+                    )}
                     onClick={canEditRecord ? () => handleEdit(record) : undefined}
                   >
                     <CardContent className="p-3">
@@ -775,23 +743,6 @@ export default function LedgerPage() {
                 ))}
               </div>
 
-              {/* Total row for range mode */}
-              {canViewTotal && !isSingleDay && filteredRecords.length > 0 && (
-                <Card>
-                  <CardContent className="py-3 px-4">
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-muted-foreground">
-                        Tổng {filteredRecords.length} bản ghi:
-                      </span>
-                      <span className="font-bold text-lg text-primary">
-                        {formatCurrency(
-                          filteredRecords.reduce((sum: number, r: any) => sum + (r.amount || 0), 0)
-                        )}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center border rounded-lg">
@@ -834,6 +785,8 @@ export default function LedgerPage() {
         editRecord={editRecord}
         defaultDate={dateRange.from || getTodayISO()}
         canEdit={canEditRecord}
+        canDelete={canDelete}
+        onDelete={(record) => setDeleteRecord(record)}
       />
 
       {/* Delete Confirmation */}
