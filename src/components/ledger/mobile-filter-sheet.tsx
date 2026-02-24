@@ -20,6 +20,7 @@ interface MobileFilterSheetProps {
   customerSearch: string;
   onCustomerSearchChange: (value: string) => void;
   activeFilterCount: number;
+  datePickerDisabled?: boolean;
 }
 
 export function MobileFilterSheet({
@@ -32,6 +33,7 @@ export function MobileFilterSheet({
   customerSearch,
   onCustomerSearchChange,
   activeFilterCount,
+  datePickerDisabled,
 }: MobileFilterSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -51,6 +53,7 @@ export function MobileFilterSheet({
           onCustomerSearchChange={onCustomerSearchChange}
           activeFilterCount={activeFilterCount}
           asCard={false}
+          datePickerDisabled={datePickerDisabled}
         />
       </SheetContent>
     </Sheet>

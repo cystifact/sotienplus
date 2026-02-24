@@ -77,9 +77,10 @@ interface DateRangePickerProps {
   value: DateRange;
   onChange: (range: DateRange) => void;
   className?: string;
+  disabled?: boolean;
 }
 
-export function DateRangePicker({ value, onChange, className }: DateRangePickerProps) {
+export function DateRangePicker({ value, onChange, className, disabled }: DateRangePickerProps) {
   const [open, setOpen] = useState(false);
 
   const activePreset = useMemo(() => {
@@ -108,15 +109,17 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
   }, [value, activePreset]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={disabled ? false : open} onOpenChange={disabled ? undefined : setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           className={cn(
             'justify-start text-left font-normal w-full',
             !value.from && 'text-muted-foreground',
+            disabled && 'opacity-60 cursor-not-allowed',
             className
           )}
+          title={disabled ? 'Bạn không có quyền xem ngày khác' : undefined}
         >
           <CalendarDays className="mr-2 h-4 w-4 shrink-0" />
           <span className="truncate">{displayLabel}</span>

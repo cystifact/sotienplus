@@ -25,6 +25,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Plus,
   Download,
   CheckSquare,
@@ -38,10 +45,13 @@ import {
   RefreshCw,
   RotateCcw,
   Filter,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RecordForm } from '@/components/cash-ledger/record-form';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import {
   cn,
   formatCurrency,
@@ -77,6 +87,7 @@ export default function LedgerPage() {
   const canExport = hasPermission('ledger', 'export');
   const canRpaSync = hasPermission('ledger', 'rpa_sync');
   const canSyncKiotViet = hasPermission('kiotviet', 'sync');
+  const canDateFilter = hasPermission('ledger', 'date_filter');
 
   // Listen for bottom nav "+" button event
   const openNewForm = useCallback(() => {
@@ -149,6 +160,13 @@ export default function LedgerPage() {
 
   const utils = trpc.useUtils();
 
+  // Pull to refresh (mobile)
+  const { pullDistance, isRefreshing, isReady, progress } = usePullToRefresh({
+    onRefresh: async () => {
+      await utils.cashRecords.list.invalidate();
+    },
+  });
+
   const deleteMutation = trpc.cashRecords.delete.useMutation({
     onSuccess: () => {
       utils.cashRecords.list.invalidate();
@@ -198,6 +216,14 @@ export default function LedgerPage() {
     onSuccess: () => {
       utils.cashRecords.list.invalidate();
       toast.success('Đã xác nhận sửa KiotViet');
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateRpaStatusMutation = trpc.cashRecords.updateRpaStatus.useMutation({
+    onSuccess: () => {
+      utils.cashRecords.list.invalidate();
+      toast.success('Đã cập nhật trạng thái KiotViet');
     },
     onError: (err) => toast.error(err.message),
   });
@@ -310,7 +336,17 @@ export default function LedgerPage() {
         ? `Số tiền đã thay đổi: ${origAmount} → ${newAmount}. Cần sửa phiếu thu trong KiotViet.`
         : `Thông tin KH đã thay đổi. Cần sửa phiếu thu trong KiotViet.`;
       return (
-        <Badge variant="outline" className="whitespace-nowrap text-xs text-orange-600 border-orange-400 bg-orange-50" title={tooltip}>
+        <Badge
+          variant="outline"
+          className="whitespace-nowrap text-xs text-orange-600 border-orange-400 bg-orange-50 cursor-pointer hover:bg-orange-100 hover:border-orange-500 transition-colors"
+          title={tooltip + '\nClick để xác nhận đã sửa.'}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm('Bạn đã sửa phiếu thu trên KiotViet xong chưa?\n\n' + tooltip)) {
+              confirmCorrectedMutation.mutate({ id: record.id });
+            }
+          }}
+        >
           <AlertTriangle className="w-2 h-2 mr-1" />
           KV cần sửa!
         </Badge>
@@ -318,42 +354,130 @@ export default function LedgerPage() {
     }
 
     if (!record.rpaStatus) return null;
-    switch (record.rpaStatus) {
-      case 'pending':
-        return (
-          <Badge variant="outline" className="whitespace-nowrap text-xs text-yellow-600 border-yellow-300">
-            <Circle className="w-2 h-2 mr-1 fill-yellow-500" />
-            Chờ TT
-          </Badge>
-        );
-      case 'processing':
-        return (
-          <Badge variant="outline" className="whitespace-nowrap text-xs text-blue-600 border-blue-300">
-            <Loader2 className="w-2 h-2 mr-1 animate-spin" />
-            Đang TT...
-          </Badge>
-        );
-      case 'success':
-        return (
-          <Badge variant="outline" className="whitespace-nowrap text-xs text-green-600 border-green-300">
-            <CheckCircle2 className="w-2 h-2 mr-1" />
-            Đã TT
-          </Badge>
-        );
-      case 'failed':
-        return (
-          <Badge variant="outline" className="whitespace-nowrap text-xs text-red-600 border-red-300" title={record.rpaError}>
-            <AlertCircle className="w-2 h-2 mr-1" />
-            TT lỗi
-          </Badge>
-        );
-      default:
-        return null;
-    }
+
+    const badgeMap: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
+      pending: {
+        className: 'text-yellow-600 border-yellow-300',
+        icon: <Circle className="w-2 h-2 mr-1 fill-yellow-500" />,
+        label: 'Chờ TT',
+      },
+      processing: {
+        className: 'text-blue-600 border-blue-300',
+        icon: <Loader2 className="w-2 h-2 mr-1 animate-spin" />,
+        label: 'Đang TT...',
+      },
+      success: {
+        className: 'text-green-600 border-green-300',
+        icon: <CheckCircle2 className="w-2 h-2 mr-1" />,
+        label: 'Đã TT',
+      },
+      failed: {
+        className: 'text-red-600 border-red-300',
+        icon: <AlertCircle className="w-2 h-2 mr-1" />,
+        label: 'TT lỗi',
+      },
+    };
+
+    const info = badgeMap[record.rpaStatus];
+    if (!info) return null;
+
+    const badge = (
+      <Badge
+        variant="outline"
+        className={cn('whitespace-nowrap text-xs', info.className, canRpaSync && 'cursor-pointer')}
+        title={record.rpaStatus === 'failed' ? record.rpaError : undefined}
+      >
+        {info.icon}
+        {info.label}
+        {canRpaSync && <Pencil className="w-2 h-2 ml-1 opacity-50" />}
+      </Badge>
+    );
+
+    if (!canRpaSync) return badge;
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {badge}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="center" className="min-w-[160px]">
+          <DropdownMenuItem
+            disabled={record.rpaStatus === 'success'}
+            onClick={() => updateRpaStatusMutation.mutate({ id: record.id, rpaStatus: 'success' })}
+            className="text-green-600"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 mr-2" />
+            Đã thanh toán
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={record.rpaStatus === 'pending'}
+            onClick={() => updateRpaStatusMutation.mutate({ id: record.id, rpaStatus: 'pending' })}
+            className="text-yellow-600"
+          >
+            <Circle className="w-3.5 h-3.5 mr-2 fill-yellow-500" />
+            Chờ thanh toán
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={record.rpaStatus === 'failed'}
+            onClick={() => updateRpaStatusMutation.mutate({ id: record.id, rpaStatus: 'failed' })}
+            className="text-red-600"
+          >
+            <AlertCircle className="w-3.5 h-3.5 mr-2" />
+            Thanh toán lỗi
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
+              if (window.confirm('Xóa trạng thái RPA? Bản ghi sẽ chuyển về chế độ tick thủ công.')) {
+                updateRpaStatusMutation.mutate({ id: record.id, rpaStatus: null });
+              }
+            }}
+            className="text-muted-foreground"
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-2" />
+            Xóa trạng thái RPA
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   };
 
   return (
     <div className="space-y-4">
+      {/* Pull to refresh indicator (mobile only) */}
+      {(pullDistance > 0 || isRefreshing) && (
+        <div
+          className="md:hidden flex items-center justify-center overflow-hidden transition-all"
+          style={{ height: pullDistance > 0 ? pullDistance : isRefreshing ? 40 : 0 }}
+        >
+          <div className={cn(
+            'flex items-center gap-2 text-sm text-muted-foreground',
+            isReady && !isRefreshing && 'text-primary font-medium'
+          )}>
+            {isRefreshing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Đang tải...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw
+                  className="h-4 w-4 transition-transform"
+                  style={{ transform: `rotate(${progress * 180}deg)` }}
+                />
+                <span>{isReady ? 'Thả để làm mới' : 'Kéo xuống để làm mới'}</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
@@ -398,6 +522,7 @@ export default function LedgerPage() {
               customerSearch={customerSearch}
               onCustomerSearchChange={setCustomerSearch}
               activeFilterCount={activeFilterCount}
+              datePickerDisabled={!canDateFilter}
             />
           </div>
         </aside>
@@ -773,6 +898,7 @@ export default function LedgerPage() {
         customerSearch={customerSearch}
         onCustomerSearchChange={setCustomerSearch}
         activeFilterCount={activeFilterCount}
+        datePickerDisabled={!canDateFilter}
       />
 
       {/* Record Form Dialog */}

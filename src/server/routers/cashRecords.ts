@@ -31,9 +31,16 @@ export const cashRecordsRouter = router({
         limit: z.number().min(1).max(2000).optional(),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const db = getAdminDb();
       let query: FirebaseFirestore.Query = db.collection('cash_records');
+
+      // Server-side date filter guard: users without date_filter permission can only view today
+      const canDateFilter = ctx.userData?.role === 'admin' || hasPermission(ctx.permissions, 'ledger', 'date_filter');
+      if (!canDateFilter) {
+        const today = getVietnamToday();
+        input = { ...input, date: today, startDate: undefined, endDate: undefined };
+      }
 
       if (input.date) {
         query = query.where('date', '==', input.date);
@@ -701,6 +708,52 @@ export const cashRecordsRouter = router({
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: ctx.userData!.id,
       });
+      return { success: true };
+    }),
+
+  updateRpaStatus: protectedProcedure
+    .use(requirePermission('ledger', 'rpa_sync'))
+    .input(
+      z.object({
+        id: z.string(),
+        rpaStatus: z.enum(['pending', 'processing', 'success', 'failed']).nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = getAdminDb();
+      const docRef = db.collection('cash_records').doc(input.id);
+      const doc = await docRef.get();
+      if (!doc.exists || doc.data()?.isActive === false) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Bản ghi không tồn tại' });
+      }
+
+      const updateData: Record<string, any> = {
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: ctx.userData!.id,
+      };
+
+      if (input.rpaStatus === null) {
+        // Clear RPA status entirely - revert to manual checkbox mode
+        updateData.rpaStatus = FieldValue.delete();
+        updateData.rpaError = FieldValue.delete();
+        updateData.rpaSyncAt = FieldValue.delete();
+        updateData.rpaQueuedAt = FieldValue.delete();
+        updateData.rpaProcessingBy = FieldValue.delete();
+        updateData.rpaProcessingAt = FieldValue.delete();
+        updateData.rpaRetryCount = FieldValue.delete();
+        updateData.rpaOriginalAmount = FieldValue.delete();
+        updateData.rpaOriginalCustomerName = FieldValue.delete();
+        updateData.rpaNeedsKiotVietCorrection = FieldValue.delete();
+        updateData.rpaKiotVietCorrected = FieldValue.delete();
+      } else {
+        updateData.rpaStatus = input.rpaStatus;
+        if (input.rpaStatus === 'success') {
+          updateData.rpaError = FieldValue.delete();
+          updateData.rpaNeedsKiotVietCorrection = false;
+        }
+      }
+
+      await docRef.update(updateData);
       return { success: true };
     }),
 });

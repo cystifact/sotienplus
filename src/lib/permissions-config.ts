@@ -19,6 +19,7 @@ export const AVAILABLE_PERMISSIONS: Omit<Permission, 'granted'>[] = [
   { module: 'ledger', action: 'view_total', label: 'Xem tổng tiền' },
   { module: 'ledger', action: 'export', label: 'Xuất Excel' },
   { module: 'ledger', action: 'rpa_sync', label: 'Đồng bộ KiotViet (RPA)' },
+  { module: 'ledger', action: 'date_filter', label: 'Đổi ngày / xem ngày khác' },
 
   // Người Nộp Tiền
   { module: 'collectors', action: 'view', label: 'Xem người nộp tiền' },
@@ -51,7 +52,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   admin: AVAILABLE_PERMISSIONS.map((p) => ({ ...p, granted: true })),
 
   manager: withGrants({
-    ledger: ['view', 'create', 'edit', 'delete', 'check', 'bulk_check', 'view_total', 'export', 'rpa_sync'],
+    ledger: ['view', 'create', 'edit', 'delete', 'check', 'bulk_check', 'view_total', 'export', 'rpa_sync', 'date_filter'],
     collectors: ['view', 'create', 'edit', 'delete'],
     users: ['view'],
     kiotviet: [],

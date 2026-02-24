@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Toaster } from 'sonner';
 import TRPCProvider from '@/_trpc/Provider';
 import { auth } from '@/lib/firebase';
@@ -8,14 +8,25 @@ import { useAuthStore } from '@/lib/auth-store';
 import { onAuthStateChanged } from 'firebase/auth';
 
 function useSyncServerSession(user: any) {
+  // Track whether user was ever set to non-null.
+  // Only call logout when transitioning from logged-in to logged-out (actual logout),
+  // NOT on initial mount when user starts as null.
+  const hadUserRef = useRef(false);
+
   useEffect(() => {
     if (!user) {
-      fetch('/api/session/logout', {
-        method: 'POST',
-        credentials: 'include',
-      }).catch(() => {});
+      if (hadUserRef.current) {
+        // User was logged in and now logged out — sync server session
+        hadUserRef.current = false;
+        fetch('/api/session/logout', {
+          method: 'POST',
+          credentials: 'include',
+        }).catch(() => {});
+      }
       return;
     }
+
+    hadUserRef.current = true;
 
     const syncSession = async () => {
       try {

@@ -19,6 +19,7 @@ interface FilterSidebarProps {
   activeFilterCount: number;
   asCard?: boolean;
   className?: string;
+  datePickerDisabled?: boolean;
 }
 
 export function FilterSidebar({
@@ -31,13 +32,14 @@ export function FilterSidebar({
   activeFilterCount,
   asCard = true,
   className,
+  datePickerDisabled,
 }: FilterSidebarProps) {
   const content = (
     <div className={cn('space-y-4', className)}>
       {/* Date Range */}
       <div className="space-y-1.5">
         <Label className="text-xs font-medium text-muted-foreground">Khoảng thời gian</Label>
-        <DateRangePicker value={dateRange} onChange={onDateRangeChange} />
+        <DateRangePicker value={dateRange} onChange={onDateRangeChange} disabled={datePickerDisabled} />
       </div>
 
       {/* Collector Search */}
