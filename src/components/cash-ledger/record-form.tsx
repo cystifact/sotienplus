@@ -138,7 +138,7 @@ export function RecordForm({
           <div className="px-4 pt-3 pb-2 space-y-3 sm:px-6">
             <div className="grid grid-cols-2 gap-3">
               {/* Date */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 min-w-0">
                 <Label htmlFor="date" className="text-xs">Ngày</Label>
                 <Input
                   id="date"
@@ -151,7 +151,7 @@ export function RecordForm({
               </div>
 
               {/* Collector */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 min-w-0">
                 <Label className="text-xs">Người nộp</Label>
                 <Combobox
                   options={collectorOptions}

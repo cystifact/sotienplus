@@ -63,6 +63,7 @@ import {
 import { FilterSidebar } from '@/components/ledger/filter-sidebar';
 import { MobileFilterSheet } from '@/components/ledger/mobile-filter-sheet';
 import type { DateRange } from '@/components/ledger/date-range-picker';
+import type { PaymentFilter, ActualReceivedFilter } from '@/components/ledger/filter-sidebar';
 
 export default function LedgerPage() {
   const [dateRange, setDateRange] = useState<DateRange>(() => {
@@ -71,6 +72,8 @@ export default function LedgerPage() {
   });
   const [collectorSearch, setCollectorSearch] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
+  const [actualReceivedFilter, setActualReceivedFilter] = useState<ActualReceivedFilter>('all');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editRecord, setEditRecord] = useState<any>(null);
@@ -141,6 +144,25 @@ export default function LedgerPage() {
       });
     }
 
+    if (paymentFilter !== 'all') {
+      result = result.filter((r: any) => {
+        const isPaid = r.rpaStatus === 'success' || r.checkKiotVietEntered;
+        const needsCorrection = r.rpaNeedsKiotVietCorrection && !r.rpaKiotVietCorrected;
+        if (paymentFilter === 'paid') return isPaid && !needsCorrection;
+        if (paymentFilter === 'unpaid') return !isPaid;
+        if (paymentFilter === 'needs_correction') return needsCorrection;
+        return true;
+      });
+    }
+
+    if (actualReceivedFilter !== 'all') {
+      result = result.filter((r: any) => {
+        if (actualReceivedFilter === 'received') return !!r.checkActualReceived;
+        if (actualReceivedFilter === 'not_received') return !r.checkActualReceived;
+        return true;
+      });
+    }
+
     // Sort records needing KiotViet correction to the top
     result.sort((a: any, b: any) => {
       const aNeedsCorrection = a.rpaNeedsKiotVietCorrection && !a.rpaKiotVietCorrected ? 1 : 0;
@@ -149,14 +171,16 @@ export default function LedgerPage() {
     });
 
     return result;
-  }, [records, collectorSearch, customerSearch]);
+  }, [records, collectorSearch, customerSearch, paymentFilter, actualReceivedFilter]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (collectorSearch.trim()) count++;
     if (customerSearch.trim()) count++;
+    if (paymentFilter !== 'all') count++;
+    if (actualReceivedFilter !== 'all') count++;
     return count;
-  }, [collectorSearch, customerSearch]);
+  }, [collectorSearch, customerSearch, paymentFilter, actualReceivedFilter]);
 
   const utils = trpc.useUtils();
 
@@ -434,14 +458,14 @@ export default function LedgerPage() {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {
-              if (window.confirm('Xóa trạng thái RPA? Bản ghi sẽ chuyển về chế độ tick thủ công.')) {
+              if (window.confirm('Chuyển về chế độ tick thủ công? Trạng thái thanh toán tự động sẽ bị xóa.')) {
                 updateRpaStatusMutation.mutate({ id: record.id, rpaStatus: null });
               }
             }}
             className="text-muted-foreground"
           >
             <Trash2 className="w-3.5 h-3.5 mr-2" />
-            Xóa trạng thái RPA
+            Chuyển về tick thủ công
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -521,6 +545,10 @@ export default function LedgerPage() {
               onCollectorSearchChange={setCollectorSearch}
               customerSearch={customerSearch}
               onCustomerSearchChange={setCustomerSearch}
+              paymentFilter={paymentFilter}
+              onPaymentFilterChange={setPaymentFilter}
+              actualReceivedFilter={actualReceivedFilter}
+              onActualReceivedFilterChange={setActualReceivedFilter}
               activeFilterCount={activeFilterCount}
               datePickerDisabled={!canDateFilter}
             />
@@ -897,6 +925,10 @@ export default function LedgerPage() {
         onCollectorSearchChange={setCollectorSearch}
         customerSearch={customerSearch}
         onCustomerSearchChange={setCustomerSearch}
+        paymentFilter={paymentFilter}
+        onPaymentFilterChange={setPaymentFilter}
+        actualReceivedFilter={actualReceivedFilter}
+        onActualReceivedFilterChange={setActualReceivedFilter}
         activeFilterCount={activeFilterCount}
         datePickerDisabled={!canDateFilter}
       />
