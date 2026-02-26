@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserCheck, RefreshCw, KeyRound } from 'lucide-react';
+import { Users, UserCheck, RefreshCw, KeyRound, Receipt } from 'lucide-react';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
 
 const settingsLinks = [
@@ -27,6 +27,14 @@ const settingsLinks = [
     icon: UserCheck,
     module: 'collectors',
     action: 'view',
+  },
+  {
+    title: 'Loại chi phí',
+    description: 'Quản lý danh sách loại chi',
+    href: '/settings/expense-types',
+    icon: Receipt,
+    module: 'expenses',
+    action: 'manage_types',
   },
   {
     title: 'KiotViet',

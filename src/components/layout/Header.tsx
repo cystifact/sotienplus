@@ -64,16 +64,30 @@ export function Header() {
               <span className="font-bold text-lg text-primary">SoTienPlus</span>
             </Link>
             <nav className="flex items-center gap-1">
-              <Link href="/ledger">
-                <Button
-                  variant={pathname.startsWith('/ledger') ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className={cn(pathname.startsWith('/ledger') && 'bg-primary/10 text-primary')}
-                >
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Sổ Ghi
-                </Button>
-              </Link>
+              {hasPermission('ledger', 'view') && (
+                <Link href="/ledger">
+                  <Button
+                    variant={pathname.startsWith('/ledger') ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className={cn(pathname.startsWith('/ledger') && 'bg-primary/10 text-primary')}
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Sổ thu
+                  </Button>
+                </Link>
+              )}
+              {hasPermission('expenses', 'view') && (
+                <Link href="/expenses">
+                  <Button
+                    variant={pathname.startsWith('/expenses') ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className={cn(pathname.startsWith('/expenses') && 'bg-primary/10 text-primary')}
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Sổ chi
+                  </Button>
+                </Link>
+              )}
               <Link href="/settings">
                 <Button
                   variant={pathname.startsWith('/settings') ? 'secondary' : 'ghost'}
@@ -110,34 +124,32 @@ export function Header() {
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)' }}
       >
         <div className="grid grid-cols-4 h-14">
-          {/* Sổ Ghi */}
-          <Link
-            href="/ledger"
-            className={cn(
-              'flex flex-col items-center justify-center gap-0.5 text-[10px]',
-              pathname.startsWith('/ledger') ? 'text-primary' : 'text-muted-foreground'
-            )}
-          >
-            <BookOpen className="h-5 w-5" />
-            Sổ Ghi
-          </Link>
-
-          {/* Thêm mới — primary action */}
-          {hasPermission('ledger', 'create') ? (
-            <button
-              onClick={() => {
-                router.push('/ledger');
-                // Dispatch custom event so ledger page can open form
-                window.dispatchEvent(new CustomEvent('open-record-form'));
-              }}
-              className="flex flex-col items-center justify-center gap-0.5 text-[10px] text-primary"
+          {/* Sổ thu */}
+          {hasPermission('ledger', 'view') && (
+            <Link
+              href="/ledger"
+              className={cn(
+                'flex flex-col items-center justify-center gap-0.5 text-[10px]',
+                pathname.startsWith('/ledger') ? 'text-primary' : 'text-muted-foreground'
+              )}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <Plus className="h-5 w-5" />
-              </div>
-            </button>
-          ) : (
-            <div />
+              <BookOpen className="h-5 w-5" />
+              Sổ thu
+            </Link>
+          )}
+
+          {/* Sổ chi */}
+          {hasPermission('expenses', 'view') && (
+            <Link
+              href="/expenses"
+              className={cn(
+                'flex flex-col items-center justify-center gap-0.5 text-[10px]',
+                pathname.startsWith('/expenses') ? 'text-primary' : 'text-muted-foreground'
+              )}
+            >
+              <BookOpen className="h-5 w-5" />
+              Sổ chi
+            </Link>
           )}
 
           {/* Cài đặt */}

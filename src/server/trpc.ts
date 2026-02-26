@@ -22,6 +22,8 @@ export interface TRPCContext {
   permissions: Permission[];
 }
 
+const VALID_ROLES: UserRole[] = ['admin', 'manager', 'staff'];
+
 export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRPCContext> => {
   let user: DecodedIdToken | null = null;
 
@@ -56,10 +58,34 @@ export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRP
     }
   }
 
+  // Resolve userData + permissions once per request (shared across batched procedures)
+  let userData: UserData | null = null;
+  let permissions: Permission[] = [];
+
+  if (user) {
+    const adminDb = getAdminDb();
+    const userDoc = await adminDb.collection('users').doc(user.uid).get();
+
+    if (userDoc.exists) {
+      const data = userDoc.data()!;
+      const role: UserRole = VALID_ROLES.includes(data.role) ? data.role : 'staff';
+
+      userData = {
+        id: userDoc.id,
+        email: data.email,
+        displayName: data.displayName,
+        role,
+        isActive: data.isActive,
+      };
+
+      permissions = mergePermissions(role, data.permissions || []);
+    }
+  }
+
   return {
     user,
-    userData: null,
-    permissions: [],
+    userData,
+    permissions,
   };
 };
 
@@ -69,47 +95,15 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 
 const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.user) {
+  if (!ctx.user || !ctx.userData) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Chưa đăng nhập' });
   }
 
-  const adminDb = getAdminDb();
-  const userDoc = await adminDb.collection('users').doc(ctx.user.uid).get();
-
-  if (!userDoc.exists) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Tài khoản không hợp lệ' });
-  }
-
-  const data = userDoc.data()!;
-  if (!data.isActive) {
+  if (!ctx.userData.isActive) {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Tài khoản đã bị vô hiệu hóa' });
   }
 
-  const VALID_ROLES: UserRole[] = ['admin', 'manager', 'staff'];
-  const role: UserRole = VALID_ROLES.includes(data.role) ? data.role : 'staff';
-
-  const userData: UserData = {
-    id: userDoc.id,
-    email: data.email,
-    displayName: data.displayName,
-    role,
-    isActive: data.isActive,
-  };
-
-  // Resolve permissions from same doc read (no extra Firestore call)
-  const permissions = mergePermissions(
-    role,
-    data.permissions || [],
-  );
-
-  return next({
-    ctx: {
-      ...ctx,
-      user: ctx.user,
-      userData,
-      permissions,
-    },
-  });
+  return next({ ctx });
 });
 
 const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {

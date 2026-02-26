@@ -64,3 +64,46 @@ export interface CashRecord {
   updatedAt: FirebaseFirestore.Timestamp;
   updatedBy?: string;
 }
+
+export interface ExpenseType {
+  id: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: FirebaseFirestore.Timestamp;
+  updatedAt: FirebaseFirestore.Timestamp;
+  createdBy: string;
+  updatedBy?: string;
+}
+
+export interface ExpenseRecord {
+  id: string;
+  date: string;
+  expenseTypeId?: string;
+  expenseTypeName: string;
+  amount: number;
+  notes?: string;
+  checkActualPaid: boolean;
+  checkKiotVietEntered: boolean;
+  isActive: boolean;
+  importedFromExcel: boolean;
+  importSource?: string;
+  rpaStatus?: 'pending' | 'processing' | 'success' | 'failed';
+  rpaError?: string;
+  rpaSyncAt?: FirebaseFirestore.Timestamp;
+  rpaQueuedAt?: FirebaseFirestore.Timestamp;
+  rpaRetryCount?: number;
+  rpaProcessingBy?: string;
+  rpaProcessingAt?: FirebaseFirestore.Timestamp;
+  rpaOriginalAmount?: number;
+  rpaOriginalExpenseTypeName?: string;
+  rpaNeedsKiotVietCorrection?: boolean;
+  rpaKiotVietCorrected?: boolean;
+  createdBy: string;
+  createdByName: string;
+  createdAt: FirebaseFirestore.Timestamp;
+  updatedAt: FirebaseFirestore.Timestamp;
+  updatedBy?: string;
+  deletedBy?: string;
+  deletedAt?: FirebaseFirestore.Timestamp;
+}

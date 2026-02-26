@@ -49,7 +49,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { RecordForm } from '@/components/cash-ledger/record-form';
+import { ExpenseForm } from '@/components/expenses/expense-form';
+import { ExcelImport } from '@/components/expenses/excel-import';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import {
@@ -60,37 +61,38 @@ import {
   formatDate,
   fuzzyMatch,
 } from '@/lib/utils';
-import { FilterSidebar } from '@/components/ledger/filter-sidebar';
-import { MobileFilterSheet } from '@/components/ledger/mobile-filter-sheet';
-import type { DateRange } from '@/components/ledger/date-range-picker';
-import type { PaymentFilter, ActualReceivedFilter } from '@/components/ledger/filter-sidebar';
+import { FilterSidebar } from '@/components/expenses/filter-sidebar';
+import { MobileFilterSheet } from '@/components/expenses/mobile-filter-sheet';
+import type { DateRange } from '@/components/expenses/date-range-picker';
+import type { PaymentFilter, ActualReceivedFilter } from '@/components/expenses/filter-sidebar';
 
-export default function LedgerPage() {
+export default function ExpensesPage() {
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const today = getTodayISO();
     return { from: today, to: today };
   });
-  const [collectorSearch, setCollectorSearch] = useState('');
-  const [customerSearch, setCustomerSearch] = useState('');
+  const [expenseTypeSearch, setExpenseTypeSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
   const [actualReceivedFilter, setActualReceivedFilter] = useState<ActualReceivedFilter>('all');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editRecord, setEditRecord] = useState<any>(null);
   const [deleteRecord, setDeleteRecord] = useState<any>(null);
   const [rpaEditWarningRecord, setRpaEditWarningRecord] = useState<any>(null);
 
   const { hasPermission } = useCurrentUserPermissions();
-  const canCreate = hasPermission('ledger', 'create');
-  const canCheck = hasPermission('ledger', 'check');
-  const canBulkCheck = hasPermission('ledger', 'bulk_check');
-  const canDelete = hasPermission('ledger', 'delete');
-  const canEditRecord = hasPermission('ledger', 'edit');
-  const canViewTotal = hasPermission('ledger', 'view_total');
-  const canExport = hasPermission('ledger', 'export');
-  const canRpaSync = hasPermission('ledger', 'rpa_sync');
+  const canCreate = hasPermission('expenses', 'create');
+  const canCheck = hasPermission('expenses', 'check');
+  const canBulkCheck = hasPermission('expenses', 'bulk_check');
+  const canDelete = hasPermission('expenses', 'delete');
+  const canEditRecord = hasPermission('expenses', 'edit');
+  const canViewTotal = hasPermission('expenses', 'view_total');
+  const canExport = hasPermission('expenses', 'export');
+  const canImport = hasPermission('expenses', 'import');
+  const canRpaSync = hasPermission('expenses', 'rpa_sync');
   const canSyncKiotViet = hasPermission('kiotviet', 'sync');
-  const canDateFilter = hasPermission('ledger', 'date_filter');
+  const canDateFilter = hasPermission('expenses', 'date_filter');
 
   // Derived state
   const isSingleDay = dateRange.from === dateRange.to;
@@ -102,7 +104,7 @@ export default function LedgerPage() {
     return { startDate: dateRange.from, endDate: dateRange.to };
   }, [dateRange, isSingleDay]);
 
-  const { data: records, isLoading, isFetching, isError, error } = trpc.cashRecords.list.useQuery(queryParams, {
+  const { data: records, isLoading, isFetching, isError, error } = trpc.expenseRecords.list.useQuery(queryParams, {
     enabled: !!dateRange.from && !!dateRange.to,
     placeholderData: (previousData) => previousData,
     refetchOnMount: true,
@@ -126,22 +128,15 @@ export default function LedgerPage() {
     setLoadingTooLong(false);
   }, [isLoading]);
 
-  // Client-side filter by collector + customer name
+  // Client-side filter by expense type name
   const filteredRecords = useMemo(() => {
     if (!records) return [];
     let result = records as any[];
 
-    if (collectorSearch.trim()) {
+    if (expenseTypeSearch.trim()) {
       result = result.filter((r: any) =>
-        fuzzyMatch(r.collectorName || '', collectorSearch)
+        fuzzyMatch(r.expenseTypeName || '', expenseTypeSearch)
       );
-    }
-
-    if (customerSearch.trim()) {
-      result = result.filter((r: any) => {
-        const searchTarget = [r.customerName, r.customerCode].filter(Boolean).join(' ');
-        return fuzzyMatch(searchTarget, customerSearch);
-      });
     }
 
     if (paymentFilter !== 'all') {
@@ -157,8 +152,8 @@ export default function LedgerPage() {
 
     if (actualReceivedFilter !== 'all') {
       result = result.filter((r: any) => {
-        if (actualReceivedFilter === 'received') return !!r.checkActualReceived;
-        if (actualReceivedFilter === 'not_received') return !r.checkActualReceived;
+        if (actualReceivedFilter === 'received') return !!r.checkActualPaid;
+        if (actualReceivedFilter === 'not_received') return !r.checkActualPaid;
         return true;
       });
     }
@@ -171,29 +166,28 @@ export default function LedgerPage() {
     });
 
     return result;
-  }, [records, collectorSearch, customerSearch, paymentFilter, actualReceivedFilter]);
+  }, [records, expenseTypeSearch, paymentFilter, actualReceivedFilter]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (collectorSearch.trim()) count++;
-    if (customerSearch.trim()) count++;
+    if (expenseTypeSearch.trim()) count++;
     if (paymentFilter !== 'all') count++;
     if (actualReceivedFilter !== 'all') count++;
     return count;
-  }, [collectorSearch, customerSearch, paymentFilter, actualReceivedFilter]);
+  }, [expenseTypeSearch, paymentFilter, actualReceivedFilter]);
 
   const utils = trpc.useUtils();
 
   // Pull to refresh (mobile)
   const { pullDistance, isRefreshing, isReady, progress } = usePullToRefresh({
     onRefresh: async () => {
-      await utils.cashRecords.list.invalidate();
+      await utils.expenseRecords.list.invalidate();
     },
   });
 
-  const deleteMutation = trpc.cashRecords.delete.useMutation({
+  const deleteMutation = trpc.expenseRecords.delete.useMutation({
     onSuccess: () => {
-      utils.cashRecords.list.invalidate();
+      utils.expenseRecords.list.invalidate();
 
       toast.success('Đã xóa bản ghi');
       setDeleteRecord(null);
@@ -201,61 +195,55 @@ export default function LedgerPage() {
     onError: (err) => toast.error(err.message),
   });
 
-  const toggleCheckMutation = trpc.cashRecords.toggleCheck.useMutation({
+  const toggleCheckMutation = trpc.expenseRecords.toggleCheck.useMutation({
     onSuccess: () => {
-      utils.cashRecords.list.invalidate();
+      utils.expenseRecords.list.invalidate();
 
     },
     onError: (err) => toast.error(err.message),
   });
 
-  const bulkCheckMutation = trpc.cashRecords.bulkCheck.useMutation({
+  const bulkCheckMutation = trpc.expenseRecords.bulkCheck.useMutation({
     onSuccess: (data) => {
-      utils.cashRecords.list.invalidate();
+      utils.expenseRecords.list.invalidate();
 
-      toast.success(`Đã cập nhật ${data.updated} bản ghi`);
+      toast.success(`Đã cập nhật ${data.count} chi phí`);
     },
     onError: (err) => toast.error(err.message),
   });
 
-  const markForSyncMutation = trpc.cashRecords.markForSync.useMutation({
+  const markForSyncMutation = trpc.expenseRecords.markForSync.useMutation({
     onSuccess: (data) => {
-      utils.cashRecords.list.invalidate();
-      if (data.marked > 0) {
-        toast.success(`Đã gửi ${data.marked} bản ghi thanh toán KiotViet`);
+      utils.expenseRecords.list.invalidate();
+      if (data.count > 0) {
+        toast.success(`Đã gửi ${data.count} chi phí thanh toán KiotViet`);
       }
     },
     onError: (err) => toast.error(err.message),
   });
 
-  const retryFailedMutation = trpc.cashRecords.retryFailed.useMutation({
+  const retryFailedMutation = trpc.expenseRecords.retryFailed.useMutation({
     onSuccess: (data) => {
-      utils.cashRecords.list.invalidate();
-      toast.success(`Đã gửi lại ${data.retried} bản ghi thanh toán KiotViet`);
+      utils.expenseRecords.list.invalidate();
+      if (data.count > 0) {
+        toast.success(`Đã gửi lại ${data.count} chi phí thanh toán KiotViet`);
+      }
     },
     onError: (err) => toast.error(err.message),
   });
 
-  const confirmCorrectedMutation = trpc.cashRecords.confirmKiotVietCorrected.useMutation({
+  const confirmCorrectedMutation = trpc.expenseRecords.confirmKiotVietCorrected.useMutation({
     onSuccess: () => {
-      utils.cashRecords.list.invalidate();
+      utils.expenseRecords.list.invalidate();
       toast.success('Đã xác nhận sửa KiotViet');
     },
     onError: (err) => toast.error(err.message),
   });
 
-  const updateRpaStatusMutation = trpc.cashRecords.updateRpaStatus.useMutation({
+  const updateRpaStatusMutation = trpc.expenseRecords.updateRpaStatus.useMutation({
     onSuccess: () => {
-      utils.cashRecords.list.invalidate();
+      utils.expenseRecords.list.invalidate();
       toast.success('Đã cập nhật trạng thái KiotViet');
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  const syncCustomersMutation = trpc.customers.sync.useMutation({
-    onSuccess: (data) => {
-      utils.customers.list.invalidate();
-      toast.success(`Đã đồng bộ ${data.synced} khách hàng từ KiotViet`);
     },
     onError: (err) => toast.error(err.message),
   });
@@ -279,13 +267,11 @@ export default function LedgerPage() {
     const data = records.map((r: any, i: number) => ({
       STT: i + 1,
       Ngày: r.date,
-      'Mã KH': r.customerCode || '',
-      'Tên KH': r.customerName,
+      'Loại chi': r.expenseTypeName,
       'Số tiền': r.amount,
-      'Người nộp': r.collectorName,
       'Người tạo': r.createdByName,
       'Ghi chú': r.notes || '',
-      'Thực nhận': r.checkActualReceived ? '✓' : '',
+      'Đã chi': r.checkActualPaid ? '✓' : '',
       KiotViet: (r.checkKiotVietEntered || r.rpaStatus === 'success') ? '✓' : '',
     }));
 
@@ -316,7 +302,7 @@ export default function LedgerPage() {
     return [...new Set((records as any[]).map((r: any) => r.date))];
   }, [records, isSingleDay, dateRange.from]);
 
-  const handleBulkCheck = (field: 'checkActualReceived' | 'checkKiotVietEntered') => {
+  const handleBulkCheck = (field: 'checkActualPaid' | 'checkKiotVietEntered') => {
     uniqueDates.forEach((date) => {
       bulkCheckMutation.mutate({ date, field, value: true });
     });
@@ -347,7 +333,7 @@ export default function LedgerPage() {
     return {
       totalAmount: arr.reduce((sum, r) => sum + (r.amount || 0), 0),
       totalRecords: arr.length,
-      checkActualCount: arr.filter((r) => r.checkActualReceived).length,
+      checkActualCount: arr.filter((r) => r.checkActualPaid).length,
       checkKiotVietCount: arr.filter((r) => r.checkKiotVietEntered || r.rpaStatus === 'success').length,
     };
   }, [records]);
@@ -357,8 +343,8 @@ export default function LedgerPage() {
       const origAmount = record.rpaOriginalAmount != null ? formatNumber(record.rpaOriginalAmount) : '?';
       const newAmount = formatNumber(record.amount);
       const tooltip = record.rpaOriginalAmount !== record.amount
-        ? `Số tiền đã thay đổi: ${origAmount} → ${newAmount}. Cần sửa phiếu thu trong KiotViet.`
-        : `Thông tin KH đã thay đổi. Cần sửa phiếu thu trong KiotViet.`;
+        ? `Số tiền đã thay đổi: ${origAmount} → ${newAmount}. Cần sửa phiếu chi trong KiotViet.`
+        : `Thông tin KH đã thay đổi. Cần sửa phiếu chi trong KiotViet.`;
       return (
         <Badge
           variant="outline"
@@ -366,7 +352,7 @@ export default function LedgerPage() {
           title={tooltip + '\nClick để xác nhận đã sửa.'}
           onClick={(e) => {
             e.stopPropagation();
-            if (window.confirm('Bạn đã sửa phiếu thu trên KiotViet xong chưa?\n\n' + tooltip)) {
+            if (window.confirm('Bạn đã sửa phiếu chi trên KiotViet xong chưa?\n\n' + tooltip)) {
               confirmCorrectedMutation.mutate({ id: record.id });
             }
           }}
@@ -506,7 +492,7 @@ export default function LedgerPage() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
           <BookOpen className="h-5 w-5 sm:h-6 sm:w-6" />
-          Sổ thu tiền
+          Sổ chi tiền
         </h1>
         <div className="flex items-center gap-2">
           {/* Mobile filter button */}
@@ -541,10 +527,8 @@ export default function LedgerPage() {
             <FilterSidebar
               dateRange={dateRange}
               onDateRangeChange={setDateRange}
-              collectorSearch={collectorSearch}
-              onCollectorSearchChange={setCollectorSearch}
-              customerSearch={customerSearch}
-              onCustomerSearchChange={setCustomerSearch}
+              expenseTypeSearch={expenseTypeSearch}
+              onExpenseTypeSearchChange={setExpenseTypeSearch}
               paymentFilter={paymentFilter}
               onPaymentFilterChange={setPaymentFilter}
               actualReceivedFilter={actualReceivedFilter}
@@ -565,26 +549,16 @@ export default function LedgerPage() {
             </div>
 
             <div className="flex gap-1 ml-auto">
-              {canSyncKiotViet && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => syncCustomersMutation.mutate()}
-                  disabled={syncCustomersMutation.isPending}
-                >
-                  {syncCustomersMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4 mr-1" />
-                  )}
-                  <span className="hidden sm:inline">Đồng bộ công nợ</span>
-                  <span className="sm:hidden">Sync</span>
-                </Button>
-              )}
               {canExport && (
                 <Button variant="outline" size="sm" onClick={handleExportExcel}>
                   <Download className="w-4 h-4 mr-1" />
-                  <span className="hidden sm:inline">Excel</span>
+                  <span className="hidden sm:inline">Xuất</span>
+                </Button>
+              )}
+              {canImport && (
+                <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Nhập</span>
                 </Button>
               )}
               {canRpaSync && (
@@ -595,8 +569,8 @@ export default function LedgerPage() {
                     uniqueDates.forEach((date) => {
                       markForSyncMutation.mutate({ date }, {
                         onSuccess: (data) => {
-                          if (data.marked === 0 && uniqueDates.length === 1) {
-                            toast.info('Không có bản ghi cần thanh toán KiotViet');
+                          if (data.count === 0 && uniqueDates.length === 1) {
+                            toast.info('Không có chi phí cần thanh toán KiotViet');
                           }
                         },
                       });
@@ -618,11 +592,11 @@ export default function LedgerPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleBulkCheck('checkActualReceived')}
+                  onClick={() => handleBulkCheck('checkActualPaid')}
                   disabled={bulkCheckMutation.isPending}
                 >
                   <CheckSquare className="w-4 h-4 mr-1" />
-                  <span className="hidden sm:inline">Tick tất cả &quot;Thực nhận&quot;</span>
+                  <span className="hidden sm:inline">Tick tất cả &quot;Đã chi&quot;</span>
                   <span className="sm:hidden">Tick TN</span>
                 </Button>
               )}
@@ -656,7 +630,7 @@ export default function LedgerPage() {
                             : ''
                         )}
                       >
-                        Thực nhận {recordsSummary.checkActualCount}/{recordsSummary.totalRecords}
+                        Đã chi {recordsSummary.checkActualCount}/{recordsSummary.totalRecords}
                       </Badge>
                       <Badge
                         variant="outline"
@@ -742,7 +716,7 @@ export default function LedgerPage() {
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-2">Tải dữ liệu lâu hơn bình thường...</p>
                   <Button variant="outline" size="sm" onClick={() => {
-                    utils.cashRecords.list.invalidate();
+                    utils.expenseRecords.list.invalidate();
                     setLoadingTooLong(false);
                   }}>
                     <RefreshCw className="w-4 h-4 mr-1" />
@@ -758,7 +732,7 @@ export default function LedgerPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 {error?.message || 'Không thể tải dữ liệu. Vui lòng thử lại.'}
               </p>
-              <Button variant="outline" onClick={() => utils.cashRecords.list.invalidate()}>
+              <Button variant="outline" onClick={() => utils.expenseRecords.list.invalidate()}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Thử lại
               </Button>
@@ -773,12 +747,12 @@ export default function LedgerPage() {
                       {!isSingleDay && (
                         <TableHead className="font-semibold">Ngày</TableHead>
                       )}
-                      <TableHead className="font-semibold">Khách hàng</TableHead>
+                      <TableHead className="font-semibold">Loại chi</TableHead>
                       <TableHead className="font-semibold text-right">Số tiền</TableHead>
                       <TableHead className="font-semibold">Ng. nộp</TableHead>
                       <TableHead className="font-semibold">Ng. tạo</TableHead>
                       <TableHead className="font-semibold text-center w-24">KiotViet</TableHead>
-                      <TableHead className="font-semibold text-center w-12" title="Thực nhận">TN</TableHead>
+                      <TableHead className="font-semibold text-center w-12" title="Đã chi">TN</TableHead>
                       <TableHead className="font-semibold">Ghi chú</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -796,12 +770,12 @@ export default function LedgerPage() {
                           <TableCell className="text-sm">{formatDate(record.date)}</TableCell>
                         )}
                         <TableCell>
-                          <span className="font-medium text-sm">{record.customerName}</span>
+                          <span className="font-medium text-sm">{record.expenseTypeName}</span>
                         </TableCell>
                         <TableCell className="text-right font-bold tabular-nums text-primary">
                           {formatNumber(record.amount)}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{record.collectorName}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{record.expenseTypeName}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{record.createdByName}</TableCell>
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                           {record.rpaStatus ? (
@@ -825,12 +799,12 @@ export default function LedgerPage() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Checkbox
-                            checked={record.checkActualReceived}
+                            checked={record.checkActualPaid}
                             disabled={!canCheck}
                             onCheckedChange={(checked) =>
                               toggleCheckMutation.mutate({
                                 id: record.id,
-                                field: 'checkActualReceived',
+                                field: 'checkActualPaid',
                                 value: !!checked,
                               })
                             }
@@ -862,13 +836,13 @@ export default function LedgerPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium text-sm truncate">
-                              {record.customerName}
+                              {record.expenseTypeName}
                             </span>
                             {record.rpaStatus ? getRpaStatusBadge(record) : null}
                           </div>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             {!isSingleDay && <span>{formatDate(record.date)} ·</span>}
-                            <span>{record.collectorName}</span>
+                            <span>{record.expenseTypeName}</span>
                             {record.notes && (
                               <>
                                 <span>·</span>
@@ -887,12 +861,12 @@ export default function LedgerPage() {
                           >
                             <label className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Checkbox
-                                checked={record.checkActualReceived}
+                                checked={record.checkActualPaid}
                                 disabled={!canCheck}
                                 onCheckedChange={(checked) =>
                                   toggleCheckMutation.mutate({
                                     id: record.id,
-                                    field: 'checkActualReceived',
+                                    field: 'checkActualPaid',
                                     value: !!checked,
                                   })
                                 }
@@ -931,7 +905,7 @@ export default function LedgerPage() {
               <BookOpen className="w-12 h-12 text-muted-foreground mb-4" />
               <h3 className="font-medium mb-2">Chưa có bản ghi nào</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Bắt đầu ghi nhận tiền thu từ khách hàng
+                Bắt đầu ghi nhận tiền thu từ loại chi
               </p>
               {canCreate && (
                 <Button onClick={() => { setEditRecord(null); setShowForm(true); }}>
@@ -950,10 +924,8 @@ export default function LedgerPage() {
         onOpenChange={setMobileFilterOpen}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
-        collectorSearch={collectorSearch}
-        onCollectorSearchChange={setCollectorSearch}
-        customerSearch={customerSearch}
-        onCustomerSearchChange={setCustomerSearch}
+        expenseTypeSearch={expenseTypeSearch}
+        onExpenseTypeSearchChange={setExpenseTypeSearch}
         paymentFilter={paymentFilter}
         onPaymentFilterChange={setPaymentFilter}
         actualReceivedFilter={actualReceivedFilter}
@@ -963,7 +935,7 @@ export default function LedgerPage() {
       />
 
       {/* Record Form Dialog */}
-      <RecordForm
+      <ExpenseForm
         open={showForm}
         onOpenChange={(open) => {
           setShowForm(open);
@@ -976,6 +948,12 @@ export default function LedgerPage() {
         onDelete={(record) => setDeleteRecord(record)}
       />
 
+      {/* Excel Import Dialog */}
+      <ExcelImport
+        open={showImport}
+        onOpenChange={setShowImport}
+      />
+
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteRecord} onOpenChange={(open) => !open && setDeleteRecord(null)}>
         <AlertDialogContent>
@@ -986,7 +964,7 @@ export default function LedgerPage() {
                 {deleteRecord?.rpaStatus === 'success' && (
                   <div className="flex items-start gap-2 p-3 rounded-md bg-orange-50 border border-orange-200 text-orange-800 text-xs mb-3">
                     <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-orange-500" />
-                    <p>Phiếu thanh toán đã được tạo trên KiotViet. Nếu xóa, bạn cần cập nhật/xóa phiếu thu trên web KiotViet.</p>
+                    <p>Phiếu thanh toán đã được tạo trên KiotViet. Nếu xóa, bạn cần cập nhật/xóa phiếu chi trên web KiotViet.</p>
                   </div>
                 )}
                 <span>Bạn có chắc chắn muốn xóa bản ghi này? Hành động này không thể hoàn tác.</span>
@@ -1017,7 +995,7 @@ export default function LedgerPage() {
               <div>
                 <div className="flex items-start gap-2 p-3 rounded-md bg-orange-50 border border-orange-200 text-orange-800 text-xs mb-3">
                   <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-orange-500" />
-                  <p>Phiếu thanh toán đã được tạo trên KiotViet. Nếu chỉnh sửa, bạn cần cập nhật phiếu thu trên web KiotViet.</p>
+                  <p>Phiếu thanh toán đã được tạo trên KiotViet. Nếu chỉnh sửa, bạn cần cập nhật phiếu chi trên web KiotViet.</p>
                 </div>
                 <span>Bạn có muốn tiếp tục chỉnh sửa?</span>
               </div>

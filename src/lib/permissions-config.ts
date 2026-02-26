@@ -37,6 +37,20 @@ export const AVAILABLE_PERMISSIONS: Omit<Permission, 'granted'>[] = [
   { module: 'kiotviet', action: 'view', label: 'Xem cài đặt KiotViet' },
   { module: 'kiotviet', action: 'configure', label: 'Cấu hình KiotViet API' },
   { module: 'kiotviet', action: 'sync', label: 'Đồng bộ khách hàng' },
+
+  // Sổ Chi (Expenses)
+  { module: 'expenses', action: 'view', label: 'Xem sổ chi' },
+  { module: 'expenses', action: 'create', label: 'Thêm chi phí' },
+  { module: 'expenses', action: 'edit', label: 'Sửa chi phí' },
+  { module: 'expenses', action: 'delete', label: 'Xóa chi phí' },
+  { module: 'expenses', action: 'check', label: 'Duyệt chi phí (tick)' },
+  { module: 'expenses', action: 'bulk_check', label: 'Duyệt hàng loạt' },
+  { module: 'expenses', action: 'view_total', label: 'Xem tổng chi' },
+  { module: 'expenses', action: 'export', label: 'Xuất Excel' },
+  { module: 'expenses', action: 'import', label: 'Nhập Excel' },
+  { module: 'expenses', action: 'rpa_sync', label: 'Đồng bộ KiotViet (RPA)' },
+  { module: 'expenses', action: 'date_filter', label: 'Đổi ngày / xem ngày khác' },
+  { module: 'expenses', action: 'manage_types', label: 'Quản lý loại chi' },
 ];
 
 // Helper: create Permission[] with specific grants
@@ -53,6 +67,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
   manager: withGrants({
     ledger: ['view', 'create', 'edit', 'delete', 'check', 'bulk_check', 'view_total', 'export', 'rpa_sync', 'date_filter'],
+    expenses: ['view', 'create', 'edit', 'delete', 'check', 'bulk_check', 'view_total', 'export', 'import', 'rpa_sync', 'date_filter', 'manage_types'],
     collectors: ['view', 'create', 'edit', 'delete'],
     users: ['view'],
     kiotviet: [],
@@ -60,6 +75,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
   staff: withGrants({
     ledger: ['view', 'create', 'export'],
+    expenses: ['view', 'create', 'export', 'import'],
     collectors: ['view'],
     users: [],
     kiotviet: [],
@@ -68,7 +84,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
 // Module labels for UI
 export const MODULE_LABELS: Record<string, string> = {
-  ledger: 'Sổ Ghi Tiền',
+  ledger: 'Sổ Thu Tiền',
+  expenses: 'Sổ Chi Tiền',
   collectors: 'Người Nộp Tiền',
   users: 'Quản Lý Người Dùng',
   kiotviet: 'KiotViet',

@@ -1,0 +1,59 @@
+EXPENSE TRACKING FEATURE - FILE CHANGES
+========================================
+
+NEW FILES CREATED (14):
+----------------------
+
+Backend:
+1. src/server/routers/expenseTypes.ts
+2. src/server/routers/expenseRecords.ts
+
+Pages:
+3. src/app/(authenticated)/settings/expense-types/page.tsx
+4. src/app/(authenticated)/expenses/page.tsx
+
+Components:
+5. src/components/expenses/use-expense-form.ts
+6. src/components/expenses/expense-batch-row.tsx
+7. src/components/expenses/expense-form.tsx
+8. src/components/expenses/filter-sidebar.tsx
+9. src/components/expenses/mobile-filter-sheet.tsx
+10. src/components/expenses/date-range-picker.tsx
+11. src/components/expenses/excel-import.tsx
+
+RPA & Documentation:
+12. rpa-expense-worker-template.js
+13. RPA-INTEGRATION-GUIDE.md
+14. IMPLEMENTATION-COMPLETE.md
+
+MODIFIED FILES (6):
+------------------
+
+1. src/types/index.ts
+   - Added ExpenseType interface
+   - Added ExpenseRecord interface with soft delete fields
+
+2. src/server/router.ts
+   - Registered expenseTypes router
+   - Registered expenseRecords router
+
+3. firestore.indexes.json
+   - Added 7 composite indexes for expense_records
+   - Added 1 index for expense_types
+   - Status: DEPLOYED ✅
+
+4. src/lib/permissions-config.ts
+   - Added 12 expense permissions
+   - Updated MODULE_LABELS (ledger→Sổ Thu Tiền, expenses→Sổ Chi Tiền)
+   - Updated role defaults (admin, manager, staff)
+
+5. src/app/(authenticated)/ledger/page.tsx
+   - Updated page title: "Sổ Ghi Tiền" → "Sổ thu tiền"
+   - Removed bottom nav "+" button event listener
+
+6. src/components/layout/Header.tsx
+   - Desktop nav: Added permission checks, updated "Sổ Ghi"→"Sổ thu", added "Sổ chi"
+   - Mobile nav: Updated "Sổ Ghi"→"Sổ thu", added "Sổ chi", removed "+" button
+
+TOTAL FILES: 20 (14 new + 6 modified)
+STATUS: All Complete ✅
