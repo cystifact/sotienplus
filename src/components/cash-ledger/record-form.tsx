@@ -136,7 +136,7 @@ export function RecordForm({
 
           {/* Shared fields - fixed */}
           <div className="px-4 pt-3 pb-2 space-y-3 sm:px-6">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Date */}
               <div className="space-y-1.5 min-w-0">
                 <Label htmlFor="date" className="text-xs">Ngày</Label>
@@ -147,6 +147,18 @@ export function RecordForm({
                   onChange={(e) => dispatch({ type: 'SET_DATE', date: e.target.value })}
                   disabled={isViewOnly}
                   required
+                  autoFocus={false}
+                  readOnly
+                  onFocus={(e) => {
+                    // Remove readonly on focus to allow date picker
+                    e.currentTarget.readOnly = false;
+                  }}
+                  onBlur={(e) => {
+                    // Re-add readonly after blur to prevent auto-focus calendar
+                    setTimeout(() => {
+                      e.currentTarget.readOnly = true;
+                    }, 100);
+                  }}
                 />
               </div>
 

@@ -24,9 +24,18 @@ export interface TRPCContext {
 
 const VALID_ROLES: UserRole[] = ['admin', 'manager', 'staff'];
 
-export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRPCContext> => {
-  let user: DecodedIdToken | null = null;
+// Cache verified sessions for 5 minutes to avoid repeated Firebase calls
+interface CachedContext {
+  user: DecodedIdToken;
+  userData: UserData;
+  permissions: Permission[];
+  expiresAt: number;
+}
 
+const contextCache = new Map<string, CachedContext>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRPCContext> => {
   // Try session cookie first
   const cookieHeader = (opts.req.headers.get('cookie') || '').toString();
   const sessionCookie = cookieHeader
@@ -34,6 +43,22 @@ export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRP
     .map((s) => s.trim())
     .find((s) => s.startsWith('__session='))
     ?.split('=')[1];
+
+  const cacheKey = sessionCookie || '';
+
+  // Check cache first
+  if (cacheKey) {
+    const cached = contextCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return {
+        user: cached.user,
+        userData: cached.userData,
+        permissions: cached.permissions,
+      };
+    }
+  }
+
+  let user: DecodedIdToken | null = null;
 
   if (sessionCookie) {
     try {
@@ -79,6 +104,26 @@ export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRP
       };
 
       permissions = mergePermissions(role, data.permissions || []);
+
+      // Cache the result
+      if (cacheKey) {
+        contextCache.set(cacheKey, {
+          user,
+          userData,
+          permissions,
+          expiresAt: Date.now() + CACHE_TTL,
+        });
+
+        // Clean up old entries periodically (when cache grows large)
+        if (contextCache.size > 100) {
+          const now = Date.now();
+          for (const [key, value] of contextCache) {
+            if (value.expiresAt <= now) {
+              contextCache.delete(key);
+            }
+          }
+        }
+      }
     }
   }
 

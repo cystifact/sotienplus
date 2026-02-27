@@ -24,6 +24,8 @@ interface ExpenseBatchRowProps {
   onUpdate: (rowId: string, field: 'expenseTypeName' | 'amount' | 'notes', value: string | number) => void;
   onRemove: (rowId: string) => void;
   onAcknowledgeDuplicate: (rowId: string) => void;
+  onAddRow?: () => void;
+  canAddRow?: boolean;
 }
 
 export const ExpenseBatchRow = React.memo(function ExpenseBatchRow({
@@ -36,6 +38,8 @@ export const ExpenseBatchRow = React.memo(function ExpenseBatchRow({
   onUpdate,
   onRemove,
   onAcknowledgeDuplicate,
+  onAddRow,
+  canAddRow,
 }: ExpenseBatchRowProps) {
   const amountRef = useRef<HTMLInputElement>(null);
   const [showNotes, setShowNotes] = useState(true);
@@ -49,6 +53,16 @@ export const ExpenseBatchRow = React.memo(function ExpenseBatchRow({
       }
     },
     [row.id, onExpenseTypeChange]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && !isViewOnly && canAddRow && onAddRow) {
+        e.preventDefault();
+        onAddRow();
+      }
+    },
+    [isViewOnly, canAddRow, onAddRow]
   );
 
   return (
@@ -99,6 +113,7 @@ export const ExpenseBatchRow = React.memo(function ExpenseBatchRow({
               placeholder="Số tiền"
               min={0}
               disabled={isViewOnly}
+              onKeyDown={handleKeyDown}
             />
           </div>
           {(showNotes || isViewOnly) && (
@@ -109,6 +124,7 @@ export const ExpenseBatchRow = React.memo(function ExpenseBatchRow({
                 placeholder="Ghi chú"
                 className="text-sm"
                 disabled={isViewOnly}
+                onKeyDown={handleKeyDown}
               />
             </div>
           )}

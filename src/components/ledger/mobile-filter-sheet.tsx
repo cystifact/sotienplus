@@ -19,6 +19,8 @@ interface MobileFilterSheetProps {
   onCollectorSearchChange: (value: string) => void;
   customerSearch: string;
   onCustomerSearchChange: (value: string) => void;
+  notesSearch: string;
+  onNotesSearchChange: (value: string) => void;
   paymentFilter: PaymentFilter;
   onPaymentFilterChange: (value: PaymentFilter) => void;
   actualReceivedFilter: ActualReceivedFilter;
@@ -36,6 +38,8 @@ export function MobileFilterSheet({
   onCollectorSearchChange,
   customerSearch,
   onCustomerSearchChange,
+  notesSearch,
+  onNotesSearchChange,
   paymentFilter,
   onPaymentFilterChange,
   actualReceivedFilter,
@@ -45,28 +49,32 @@ export function MobileFilterSheet({
 }: MobileFilterSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto rounded-t-xl">
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-xl pb-safe">
         <SheetHeader className="pb-4">
           <SheetTitle>Bộ lọc</SheetTitle>
           <SheetDescription className="sr-only">
             Lọc danh sách bản ghi theo ngày, người nộp, khách hàng, trạng thái thanh toán
           </SheetDescription>
         </SheetHeader>
-        <FilterSidebar
-          dateRange={dateRange}
-          onDateRangeChange={onDateRangeChange}
-          collectorSearch={collectorSearch}
-          onCollectorSearchChange={onCollectorSearchChange}
-          customerSearch={customerSearch}
-          onCustomerSearchChange={onCustomerSearchChange}
-          paymentFilter={paymentFilter}
-          onPaymentFilterChange={onPaymentFilterChange}
-          actualReceivedFilter={actualReceivedFilter}
-          onActualReceivedFilterChange={onActualReceivedFilterChange}
-          activeFilterCount={activeFilterCount}
-          asCard={false}
-          datePickerDisabled={datePickerDisabled}
-        />
+        <div className="pb-40">
+          <FilterSidebar
+            dateRange={dateRange}
+            onDateRangeChange={onDateRangeChange}
+            collectorSearch={collectorSearch}
+            onCollectorSearchChange={onCollectorSearchChange}
+            customerSearch={customerSearch}
+            onCustomerSearchChange={onCustomerSearchChange}
+            notesSearch={notesSearch}
+            onNotesSearchChange={onNotesSearchChange}
+            paymentFilter={paymentFilter}
+            onPaymentFilterChange={onPaymentFilterChange}
+            actualReceivedFilter={actualReceivedFilter}
+            onActualReceivedFilterChange={onActualReceivedFilterChange}
+            activeFilterCount={activeFilterCount}
+            asCard={false}
+            datePickerDisabled={datePickerDisabled}
+          />
+        </div>
       </SheetContent>
     </Sheet>
   );

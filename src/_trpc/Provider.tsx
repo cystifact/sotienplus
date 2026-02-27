@@ -53,8 +53,15 @@ export default function TRPCProvider({
           url: '/api/trpc',
           maxURLLength: 2000,
           async headers() {
-            // Read auth.currentUser directly to always get the latest auth state,
-            // regardless of React render timing or closure staleness
+            // Session cookie is sent automatically by browser.
+            // Only send Bearer token as fallback when cookie might not exist yet
+            // (e.g., immediately after login before cookie round-trip completes)
+            const hasCookie = document.cookie.includes('__session=');
+            if (hasCookie) {
+              return {}; // Cookie sent automatically, no need for Bearer token
+            }
+
+            // Fallback: send Bearer token if no cookie yet
             const currentUser = auth.currentUser;
             if (currentUser) {
               try {

@@ -141,6 +141,18 @@ export function ExpenseForm({
                 onChange={(e) => dispatch({ type: 'SET_DATE', date: e.target.value })}
                 disabled={isViewOnly}
                 required
+                autoFocus={false}
+                readOnly
+                onFocus={(e) => {
+                  // Remove readonly on focus to allow date picker
+                  e.currentTarget.readOnly = false;
+                }}
+                onBlur={(e) => {
+                  // Re-add readonly after blur to prevent auto-focus calendar
+                  setTimeout(() => {
+                    e.currentTarget.readOnly = true;
+                  }, 100);
+                }}
               />
             </div>
           </div>
@@ -161,6 +173,8 @@ export function ExpenseForm({
                 onUpdate={handleUpdate}
                 onRemove={handleRemove}
                 onAcknowledgeDuplicate={handleAcknowledgeDuplicate}
+                onAddRow={!isEditMode ? handleAddRow : undefined}
+                canAddRow={!isEditMode && !isViewOnly && state.rows.length < MAX_ROWS}
               />
             ))}
 

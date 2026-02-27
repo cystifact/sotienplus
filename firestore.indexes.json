@@ -78,6 +78,17 @@
       "collectionGroup": "expense_records",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "expense_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "expenseTypeId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]

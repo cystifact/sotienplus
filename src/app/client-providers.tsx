@@ -12,6 +12,7 @@ function useSyncServerSession(user: any) {
   // Only call logout when transitioning from logged-in to logged-out (actual logout),
   // NOT on initial mount when user starts as null.
   const hadUserRef = useRef(false);
+  const lastSyncRef = useRef<number>(0);
 
   useEffect(() => {
     if (!user) {
@@ -37,12 +38,19 @@ function useSyncServerSession(user: any) {
           credentials: 'include',
           body: JSON.stringify({ idToken }),
         });
+        lastSyncRef.current = Date.now();
       } catch (error) {
         console.warn('[SessionSync] Error syncing session:', error);
       }
     };
 
-    syncSession();
+    // Only sync if cookie might be expired (>12 hours since last sync)
+    // The cookie itself lasts 14 days, so we don't need to sync on every page load
+    const timeSinceLastSync = Date.now() - lastSyncRef.current;
+    if (timeSinceLastSync > 12 * 60 * 60 * 1000 || lastSyncRef.current === 0) {
+      // Fire-and-forget: don't block auth flow
+      syncSession();
+    }
 
     const syncInterval = setInterval(syncSession, 4 * 60 * 60 * 1000); // Refresh every 4 hours
     return () => clearInterval(syncInterval);
@@ -94,18 +102,6 @@ export default function ClientProviders({
         theme="light"
         richColors={false}
       />
-      <style jsx global>{`
-        .success-toast {
-          background-color: #f0fdf4 !important;
-          border: 1px solid #bbf7d0 !important;
-          color: #14532d !important;
-        }
-        .error-toast {
-          background-color: #fef2f2 !important;
-          border: 1px solid #fecaca !important;
-          color: #991b1b !important;
-        }
-      `}</style>
     </AuthProvider>
   );
 }

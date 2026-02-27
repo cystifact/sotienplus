@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,8 +51,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ExpenseForm } from '@/components/expenses/expense-form';
-import { ExcelImport } from '@/components/expenses/excel-import';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
+
+// Lazy load ExcelImport - only loaded when user clicks import button
+const ExcelImport = dynamic(
+  () => import('@/components/expenses/excel-import').then(m => ({ default: m.ExcelImport })),
+  { ssr: false }
+);
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import {
   cn,
@@ -72,8 +78,8 @@ export default function ExpensesPage() {
     return { from: today, to: today };
   });
   const [expenseTypeSearch, setExpenseTypeSearch] = useState('');
+  const [notesSearch, setNotesSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
-  const [actualReceivedFilter, setActualReceivedFilter] = useState<ActualReceivedFilter>('all');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -128,7 +134,7 @@ export default function ExpensesPage() {
     setLoadingTooLong(false);
   }, [isLoading]);
 
-  // Client-side filter by expense type name
+  // Client-side filter by expense type name and notes
   const filteredRecords = useMemo(() => {
     if (!records) return [];
     let result = records as any[];
@@ -136,6 +142,12 @@ export default function ExpensesPage() {
     if (expenseTypeSearch.trim()) {
       result = result.filter((r: any) =>
         fuzzyMatch(r.expenseTypeName || '', expenseTypeSearch)
+      );
+    }
+
+    if (notesSearch.trim()) {
+      result = result.filter((r: any) =>
+        fuzzyMatch(r.notes || '', notesSearch)
       );
     }
 
@@ -150,14 +162,6 @@ export default function ExpensesPage() {
       });
     }
 
-    if (actualReceivedFilter !== 'all') {
-      result = result.filter((r: any) => {
-        if (actualReceivedFilter === 'received') return !!r.checkActualPaid;
-        if (actualReceivedFilter === 'not_received') return !r.checkActualPaid;
-        return true;
-      });
-    }
-
     // Sort records needing KiotViet correction to the top
     result.sort((a: any, b: any) => {
       const aNeedsCorrection = a.rpaNeedsKiotVietCorrection && !a.rpaKiotVietCorrected ? 1 : 0;
@@ -166,15 +170,15 @@ export default function ExpensesPage() {
     });
 
     return result;
-  }, [records, expenseTypeSearch, paymentFilter, actualReceivedFilter]);
+  }, [records, expenseTypeSearch, notesSearch, paymentFilter]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (expenseTypeSearch.trim()) count++;
+    if (notesSearch.trim()) count++;
     if (paymentFilter !== 'all') count++;
-    if (actualReceivedFilter !== 'all') count++;
     return count;
-  }, [expenseTypeSearch, paymentFilter, actualReceivedFilter]);
+  }, [expenseTypeSearch, notesSearch, paymentFilter]);
 
   const utils = trpc.useUtils();
 
@@ -511,10 +515,20 @@ export default function ExpensesPage() {
             )}
           </Button>
           {canCreate && (
-            <Button size="sm" className="hidden md:inline-flex" onClick={() => { setEditRecord(null); setShowForm(true); }}>
-              <Plus className="w-4 h-4 mr-1" />
-              Thêm mới
-            </Button>
+            <>
+              <Button size="sm" className="hidden md:inline-flex" onClick={() => { setEditRecord(null); setShowForm(true); }}>
+                <Plus className="w-4 h-4 mr-1" />
+                Thêm mới
+              </Button>
+              {/* Mobile FAB */}
+              <Button
+                size="icon"
+                className="md:hidden fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-50"
+                onClick={() => { setEditRecord(null); setShowForm(true); }}
+              >
+                <Plus className="h-6 w-6" />
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -529,10 +543,10 @@ export default function ExpensesPage() {
               onDateRangeChange={setDateRange}
               expenseTypeSearch={expenseTypeSearch}
               onExpenseTypeSearchChange={setExpenseTypeSearch}
+              notesSearch={notesSearch}
+              onNotesSearchChange={setNotesSearch}
               paymentFilter={paymentFilter}
               onPaymentFilterChange={setPaymentFilter}
-              actualReceivedFilter={actualReceivedFilter}
-              onActualReceivedFilterChange={setActualReceivedFilter}
               activeFilterCount={activeFilterCount}
               datePickerDisabled={!canDateFilter}
             />
@@ -561,7 +575,7 @@ export default function ExpensesPage() {
                   <span className="hidden sm:inline">Nhập</span>
                 </Button>
               )}
-              {canRpaSync && (
+              {canRpaSync && false && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -586,18 +600,6 @@ export default function ExpensesPage() {
                   )}
                   <span className="hidden sm:inline">Thanh toán KV</span>
                   <span className="sm:hidden">KV</span>
-                </Button>
-              )}
-              {canBulkCheck && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleBulkCheck('checkActualPaid')}
-                  disabled={bulkCheckMutation.isPending}
-                >
-                  <CheckSquare className="w-4 h-4 mr-1" />
-                  <span className="hidden sm:inline">Tick tất cả &quot;Đã chi&quot;</span>
-                  <span className="sm:hidden">Tick TN</span>
                 </Button>
               )}
             </div>
@@ -752,7 +754,6 @@ export default function ExpensesPage() {
                       <TableHead className="font-semibold">Ng. nộp</TableHead>
                       <TableHead className="font-semibold">Ng. tạo</TableHead>
                       <TableHead className="font-semibold text-center w-24">KiotViet</TableHead>
-                      <TableHead className="font-semibold text-center w-12" title="Đã chi">TN</TableHead>
                       <TableHead className="font-semibold">Ghi chú</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -793,22 +794,6 @@ export default function ExpensesPage() {
                               }
                             />
                           )}
-                        </TableCell>
-                        <TableCell
-                          className="text-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Checkbox
-                            checked={record.checkActualPaid}
-                            disabled={!canCheck}
-                            onCheckedChange={(checked) =>
-                              toggleCheckMutation.mutate({
-                                id: record.id,
-                                field: 'checkActualPaid',
-                                value: !!checked,
-                              })
-                            }
-                          />
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
                           {record.notes || ''}
@@ -859,21 +844,6 @@ export default function ExpensesPage() {
                             className="flex items-center gap-2 mt-1 justify-end"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Checkbox
-                                checked={record.checkActualPaid}
-                                disabled={!canCheck}
-                                onCheckedChange={(checked) =>
-                                  toggleCheckMutation.mutate({
-                                    id: record.id,
-                                    field: 'checkActualPaid',
-                                    value: !!checked,
-                                  })
-                                }
-                                className="h-4 w-4"
-                              />
-                              TN
-                            </label>
                             {!record.rpaStatus && (
                               <label className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <Checkbox
@@ -926,10 +896,10 @@ export default function ExpensesPage() {
         onDateRangeChange={setDateRange}
         expenseTypeSearch={expenseTypeSearch}
         onExpenseTypeSearchChange={setExpenseTypeSearch}
+        notesSearch={notesSearch}
+        onNotesSearchChange={setNotesSearch}
         paymentFilter={paymentFilter}
         onPaymentFilterChange={setPaymentFilter}
-        actualReceivedFilter={actualReceivedFilter}
-        onActualReceivedFilterChange={setActualReceivedFilter}
         activeFilterCount={activeFilterCount}
         datePickerDisabled={!canDateFilter}
       />

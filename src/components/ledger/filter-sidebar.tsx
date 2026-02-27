@@ -19,6 +19,8 @@ interface FilterSidebarProps {
   onCollectorSearchChange: (value: string) => void;
   customerSearch: string;
   onCustomerSearchChange: (value: string) => void;
+  notesSearch: string;
+  onNotesSearchChange: (value: string) => void;
   paymentFilter: PaymentFilter;
   onPaymentFilterChange: (value: PaymentFilter) => void;
   actualReceivedFilter: ActualReceivedFilter;
@@ -49,6 +51,8 @@ export function FilterSidebar({
   onCollectorSearchChange,
   customerSearch,
   onCustomerSearchChange,
+  notesSearch,
+  onNotesSearchChange,
   paymentFilter,
   onPaymentFilterChange,
   actualReceivedFilter,
@@ -114,6 +118,30 @@ export function FilterSidebar({
         </div>
       </div>
 
+      {/* Notes Search */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-medium text-muted-foreground">Ghi chú</Label>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <DebouncedInput
+            value={notesSearch}
+            onChange={onNotesSearchChange}
+            placeholder="Tìm ghi chú..."
+            className="pl-8 h-9 text-sm"
+          />
+          {notesSearch && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-0 h-full w-8 hover:bg-transparent"
+              onClick={() => onNotesSearchChange('')}
+            >
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Payment Filter */}
       <div className="space-y-1.5">
         <Label className="text-xs font-medium text-muted-foreground">Thanh toán KiotViet</Label>
@@ -171,6 +199,7 @@ export function FilterSidebar({
             onClick={() => {
               onCollectorSearchChange('');
               onCustomerSearchChange('');
+              onNotesSearchChange('');
               onPaymentFilterChange('all');
               onActualReceivedFilterChange('all');
             }}

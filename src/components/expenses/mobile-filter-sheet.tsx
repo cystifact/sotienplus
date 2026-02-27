@@ -17,10 +17,10 @@ interface MobileFilterSheetProps {
   onDateRangeChange: (range: DateRange) => void;
   expenseTypeSearch: string;
   onExpenseTypeSearchChange: (value: string) => void;
+  notesSearch: string;
+  onNotesSearchChange: (value: string) => void;
   paymentFilter: PaymentFilter;
   onPaymentFilterChange: (value: PaymentFilter) => void;
-  actualReceivedFilter: ActualReceivedFilter;
-  onActualReceivedFilterChange: (value: ActualReceivedFilter) => void;
   activeFilterCount: number;
   datePickerDisabled?: boolean;
 }
@@ -32,35 +32,37 @@ export function MobileFilterSheet({
   onDateRangeChange,
   expenseTypeSearch,
   onExpenseTypeSearchChange,
+  notesSearch,
+  onNotesSearchChange,
   paymentFilter,
   onPaymentFilterChange,
-  actualReceivedFilter,
-  onActualReceivedFilterChange,
   activeFilterCount,
   datePickerDisabled,
 }: MobileFilterSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto rounded-t-xl">
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-xl pb-safe">
         <SheetHeader className="pb-4">
           <SheetTitle>Bộ lọc</SheetTitle>
           <SheetDescription className="sr-only">
             Lọc danh sách chi phí theo ngày, loại chi, trạng thái thanh toán
           </SheetDescription>
         </SheetHeader>
-        <FilterSidebar
-          dateRange={dateRange}
-          onDateRangeChange={onDateRangeChange}
-          expenseTypeSearch={expenseTypeSearch}
-          onExpenseTypeSearchChange={onExpenseTypeSearchChange}
-          paymentFilter={paymentFilter}
-          onPaymentFilterChange={onPaymentFilterChange}
-          actualReceivedFilter={actualReceivedFilter}
-          onActualReceivedFilterChange={onActualReceivedFilterChange}
-          activeFilterCount={activeFilterCount}
-          asCard={false}
-          datePickerDisabled={datePickerDisabled}
-        />
+        <div className="pb-40">
+          <FilterSidebar
+            dateRange={dateRange}
+            onDateRangeChange={onDateRangeChange}
+            expenseTypeSearch={expenseTypeSearch}
+            onExpenseTypeSearchChange={onExpenseTypeSearchChange}
+            notesSearch={notesSearch}
+            onNotesSearchChange={onNotesSearchChange}
+            paymentFilter={paymentFilter}
+            onPaymentFilterChange={onPaymentFilterChange}
+            activeFilterCount={activeFilterCount}
+            asCard={false}
+            datePickerDisabled={datePickerDisabled}
+          />
+        </div>
       </SheetContent>
     </Sheet>
   );

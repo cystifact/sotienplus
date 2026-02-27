@@ -605,7 +605,7 @@ export const cashRecordsRouter = router({
         await batch.commit();
       }
 
-      return { retried };
+      return { success: true, count: retried };
     }),
 
   rpaClaimNext: protectedProcedure

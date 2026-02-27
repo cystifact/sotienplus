@@ -4,6 +4,13 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+
+  // Exclude settings subpages from precache - they'll be cached on-demand
+  buildExcludes: [
+    /chunks\/app\/\(authenticated\)\/settings\/(change-password|users|collectors|expense-types|kiotviet)\//,
+    /app-build-manifest\.json$/,
+  ],
+
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
@@ -13,6 +20,18 @@ const withPWA = require('next-pwa')({
         expiration: {
           maxEntries: 10,
           maxAgeSeconds: 365 * 24 * 60 * 60,
+        },
+      },
+    },
+    {
+      // Cache settings pages on-demand
+      urlPattern: /\/_next\/static\/chunks\/app\/.*settings.*/i,
+      handler: 'StaleWhileRevalidate',
+      options: {
+        cacheName: 'settings-pages',
+        expiration: {
+          maxEntries: 20,
+          maxAgeSeconds: 7 * 24 * 60 * 60,
         },
       },
     },

@@ -17,10 +17,10 @@ interface FilterSidebarProps {
   onDateRangeChange: (range: DateRange) => void;
   expenseTypeSearch: string;
   onExpenseTypeSearchChange: (value: string) => void;
+  notesSearch: string;
+  onNotesSearchChange: (value: string) => void;
   paymentFilter: PaymentFilter;
   onPaymentFilterChange: (value: PaymentFilter) => void;
-  actualReceivedFilter: ActualReceivedFilter;
-  onActualReceivedFilterChange: (value: ActualReceivedFilter) => void;
   activeFilterCount: number;
   asCard?: boolean;
   className?: string;
@@ -45,10 +45,10 @@ export function FilterSidebar({
   onDateRangeChange,
   expenseTypeSearch,
   onExpenseTypeSearchChange,
+  notesSearch,
+  onNotesSearchChange,
   paymentFilter,
   onPaymentFilterChange,
-  actualReceivedFilter,
-  onActualReceivedFilterChange,
   activeFilterCount,
   asCard = true,
   className,
@@ -86,6 +86,30 @@ export function FilterSidebar({
         </div>
       </div>
 
+      {/* Notes Search */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-medium text-muted-foreground">Ghi chú</Label>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <DebouncedInput
+            value={notesSearch}
+            onChange={onNotesSearchChange}
+            placeholder="Tìm ghi chú..."
+            className="pl-8 h-9 text-sm"
+          />
+          {notesSearch && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-0 h-full w-8 hover:bg-transparent"
+              onClick={() => onNotesSearchChange('')}
+            >
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Payment Filter */}
       <div className="space-y-1.5">
         <Label className="text-xs font-medium text-muted-foreground">Thanh toán KiotViet</Label>
@@ -108,28 +132,6 @@ export function FilterSidebar({
         </div>
       </div>
 
-      {/* Actual Received Filter */}
-      <div className="space-y-1.5">
-        <Label className="text-xs font-medium text-muted-foreground">Thực chi</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {ACTUAL_RECEIVED_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onActualReceivedFilterChange(opt.value)}
-              className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors',
-                actualReceivedFilter === opt.value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Active filter indicator */}
       {activeFilterCount > 0 && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -142,8 +144,8 @@ export function FilterSidebar({
             className="h-6 text-xs px-2"
             onClick={() => {
               onExpenseTypeSearchChange('');
+              onNotesSearchChange('');
               onPaymentFilterChange('all');
-              onActualReceivedFilterChange('all');
             }}
           >
             Xóa bộ lọc

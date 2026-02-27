@@ -72,6 +72,7 @@ export default function LedgerPage() {
   });
   const [collectorSearch, setCollectorSearch] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [notesSearch, setNotesSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
   const [actualReceivedFilter, setActualReceivedFilter] = useState<ActualReceivedFilter>('all');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -126,7 +127,7 @@ export default function LedgerPage() {
     setLoadingTooLong(false);
   }, [isLoading]);
 
-  // Client-side filter by collector + customer name
+  // Client-side filter by collector + customer name + notes
   const filteredRecords = useMemo(() => {
     if (!records) return [];
     let result = records as any[];
@@ -142,6 +143,12 @@ export default function LedgerPage() {
         const searchTarget = [r.customerName, r.customerCode].filter(Boolean).join(' ');
         return fuzzyMatch(searchTarget, customerSearch);
       });
+    }
+
+    if (notesSearch.trim()) {
+      result = result.filter((r: any) =>
+        fuzzyMatch(r.notes || '', notesSearch)
+      );
     }
 
     if (paymentFilter !== 'all') {
@@ -171,16 +178,17 @@ export default function LedgerPage() {
     });
 
     return result;
-  }, [records, collectorSearch, customerSearch, paymentFilter, actualReceivedFilter]);
+  }, [records, collectorSearch, customerSearch, notesSearch, paymentFilter, actualReceivedFilter]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (collectorSearch.trim()) count++;
     if (customerSearch.trim()) count++;
+    if (notesSearch.trim()) count++;
     if (paymentFilter !== 'all') count++;
     if (actualReceivedFilter !== 'all') count++;
     return count;
-  }, [collectorSearch, customerSearch, paymentFilter, actualReceivedFilter]);
+  }, [collectorSearch, customerSearch, notesSearch, paymentFilter, actualReceivedFilter]);
 
   const utils = trpc.useUtils();
 
@@ -231,7 +239,9 @@ export default function LedgerPage() {
   const retryFailedMutation = trpc.cashRecords.retryFailed.useMutation({
     onSuccess: (data) => {
       utils.cashRecords.list.invalidate();
-      toast.success(`Đã gửi lại ${data.retried} bản ghi thanh toán KiotViet`);
+      if (data.count > 0) {
+        toast.success(`Đã gửi lại ${data.count} bản ghi thanh toán KiotViet`);
+      }
     },
     onError: (err) => toast.error(err.message),
   });
@@ -525,10 +535,20 @@ export default function LedgerPage() {
             )}
           </Button>
           {canCreate && (
-            <Button size="sm" className="hidden md:inline-flex" onClick={() => { setEditRecord(null); setShowForm(true); }}>
-              <Plus className="w-4 h-4 mr-1" />
-              Thêm mới
-            </Button>
+            <>
+              <Button size="sm" className="hidden md:inline-flex" onClick={() => { setEditRecord(null); setShowForm(true); }}>
+                <Plus className="w-4 h-4 mr-1" />
+                Thêm mới
+              </Button>
+              {/* Mobile FAB */}
+              <Button
+                size="icon"
+                className="md:hidden fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-50"
+                onClick={() => { setEditRecord(null); setShowForm(true); }}
+              >
+                <Plus className="h-6 w-6" />
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -545,6 +565,8 @@ export default function LedgerPage() {
               onCollectorSearchChange={setCollectorSearch}
               customerSearch={customerSearch}
               onCustomerSearchChange={setCustomerSearch}
+              notesSearch={notesSearch}
+              onNotesSearchChange={setNotesSearch}
               paymentFilter={paymentFilter}
               onPaymentFilterChange={setPaymentFilter}
               actualReceivedFilter={actualReceivedFilter}
@@ -587,7 +609,7 @@ export default function LedgerPage() {
                   <span className="hidden sm:inline">Excel</span>
                 </Button>
               )}
-              {canRpaSync && (
+              {canRpaSync && false && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -954,6 +976,8 @@ export default function LedgerPage() {
         onCollectorSearchChange={setCollectorSearch}
         customerSearch={customerSearch}
         onCustomerSearchChange={setCustomerSearch}
+        notesSearch={notesSearch}
+        onNotesSearchChange={setNotesSearch}
         paymentFilter={paymentFilter}
         onPaymentFilterChange={setPaymentFilter}
         actualReceivedFilter={actualReceivedFilter}

@@ -49,12 +49,15 @@ export const expenseRecordsRouter = router({
         query = query.where('expenseTypeId', '==', input.expenseTypeId);
       }
 
+      query = query.where('isActive', '==', true);
       query = query.orderBy('date', 'desc').orderBy('createdAt', 'asc');
 
+      if (input.limit) {
+        query = query.limit(input.limit);
+      }
+
       const snapshot = await query.get();
-      // Filter in application code — Firestore != excludes docs missing the field
-      const activeDocs = snapshot.docs.filter((doc) => doc.data().isActive !== false);
-      const limited = activeDocs.slice(0, input.limit || 1000);
+      const limited = snapshot.docs.slice(0, input.limit || 1000);
 
       return limited.map((doc) => ({
         id: doc.id,
@@ -442,13 +445,13 @@ export const expenseRecordsRouter = router({
       const db = getAdminDb();
       const snapshot = await db.collection('expense_records')
         .where('date', '==', input.date)
+        .where('isActive', '==', true)
         .get();
 
-      // Filter: active + has valid expenseTypeName + not already success/pending/processing + not imported from Excel
+      // Filter: has valid expenseTypeName + not already success/pending/processing + not imported from Excel
       const eligibleDocs = snapshot.docs.filter((doc) => {
         const data = doc.data();
         return (
-          data.isActive &&
           data.expenseTypeName &&
           !['success', 'pending', 'processing'].includes(data.rpaStatus) &&
           !data.importedFromExcel

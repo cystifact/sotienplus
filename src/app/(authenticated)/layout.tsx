@@ -24,8 +24,28 @@ export default function AuthenticatedLayout({
 
   if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center" role="status" aria-busy="true">
-        <div className="animate-pulse text-muted-foreground">Đang tải...</div>
+      <div className="min-h-screen bg-background">
+        {/* Skeleton header */}
+        <header className="sticky top-0 z-40 border-b bg-background h-14">
+          <div className="container-optimized flex h-14 items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div className="h-8 w-8 rounded bg-muted animate-pulse" />
+              <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+            </div>
+            <div className="h-9 w-24 rounded bg-muted animate-pulse" />
+          </div>
+        </header>
+        {/* Skeleton content */}
+        <main className="container-optimized py-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="h-8 w-48 rounded bg-muted animate-pulse" />
+              <div className="h-10 w-32 rounded bg-muted animate-pulse" />
+            </div>
+            <div className="h-12 w-full rounded-lg bg-muted animate-pulse" />
+            <div className="h-96 rounded-lg bg-muted animate-pulse" />
+          </div>
+        </main>
       </div>
     );
   }
