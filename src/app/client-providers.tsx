@@ -32,12 +32,15 @@ function useSyncServerSession(user: any) {
     const syncSession = async () => {
       try {
         const idToken = await user.getIdToken();
-        await fetch('/api/session/login', {
+        const res = await fetch('/api/session/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ idToken }),
         });
+        if (!res.ok) {
+          console.warn('[SessionSync] Failed to sync session:', res.status);
+        }
         lastSyncRef.current = Date.now();
       } catch (error) {
         console.warn('[SessionSync] Error syncing session:', error);

@@ -33,7 +33,17 @@ interface CachedContext {
 }
 
 const contextCache = new Map<string, CachedContext>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 30 * 1000; // 30 seconds for faster permission revocation
+
+// Periodic cleanup of expired cache entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of contextCache) {
+    if (value.expiresAt <= now) {
+      contextCache.delete(key);
+    }
+  }
+}, 60 * 1000); // Every minute
 
 export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRPCContext> => {
   // Try session cookie first
@@ -113,16 +123,6 @@ export const createTRPCContext = async (opts: CreateContextOptions): Promise<TRP
           permissions,
           expiresAt: Date.now() + CACHE_TTL,
         });
-
-        // Clean up old entries periodically (when cache grows large)
-        if (contextCache.size > 100) {
-          const now = Date.now();
-          for (const [key, value] of contextCache) {
-            if (value.expiresAt <= now) {
-              contextCache.delete(key);
-            }
-          }
-        }
       }
     }
   }
