@@ -50,7 +50,7 @@ export const expenseRecordsRouter = router({
       }
 
       query = query.where('isActive', '==', true);
-      query = query.orderBy('date', 'desc').orderBy('createdAt', 'desc').orderBy('orderIndex', 'asc');
+      query = query.orderBy('date', 'desc').orderBy('createdAt', 'desc');
 
       if (input.limit) {
         query = query.limit(input.limit);
@@ -59,9 +59,10 @@ export const expenseRecordsRouter = router({
       const snapshot = await query.get();
       const limited = snapshot.docs.slice(0, input.limit || 1000);
 
-      return limited.map((doc) => ({
+      const results = limited.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        orderIndex: doc.data().orderIndex ?? 0,
         createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
         updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || null,
         rpaSyncAt: doc.data().rpaSyncAt?.toDate?.()?.toISOString() || null,
@@ -69,6 +70,16 @@ export const expenseRecordsRouter = router({
         rpaProcessingAt: doc.data().rpaProcessingAt?.toDate?.()?.toISOString() || null,
         deletedAt: doc.data().deletedAt?.toDate?.()?.toISOString() || null,
       }));
+
+      // Sort by orderIndex in application code (Firestore orderBy excludes docs missing the field)
+      results.sort((a, b) => {
+        if (a.createdAt === b.createdAt) {
+          return (a.orderIndex as number) - (b.orderIndex as number);
+        }
+        return 0;
+      });
+
+      return results;
     }),
 
   create: protectedProcedure

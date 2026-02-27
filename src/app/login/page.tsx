@@ -33,7 +33,17 @@ export default function LoginPage() {
         ? emailOrUsername
         : `${emailOrUsername}@sotienplus.local`;
 
-      await signInWithEmailAndPassword(auth, loginEmail, password);
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
+
+      // Create session cookie BEFORE navigating so middleware allows the redirect
+      const idToken = await userCredential.user.getIdToken();
+      await fetch('/api/session/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ idToken }),
+      });
+
       toast.success('Đăng nhập thành công');
       router.push('/ledger');
     } catch (error: unknown) {

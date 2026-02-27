@@ -21,7 +21,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "date", "order": "DESCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -80,8 +80,7 @@
       "fields": [
         { "fieldPath": "isActive", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" },
-        { "fieldPath": "orderIndex", "order": "ASCENDING" }
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -91,8 +90,7 @@
         { "fieldPath": "isActive", "order": "ASCENDING" },
         { "fieldPath": "expenseTypeId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" },
-        { "fieldPath": "orderIndex", "order": "ASCENDING" }
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
