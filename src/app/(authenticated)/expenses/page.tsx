@@ -78,6 +78,7 @@ export default function ExpensesPage() {
     return { from: today, to: today };
   });
   const [expenseTypeSearch, setExpenseTypeSearch] = useState('');
+  const [creatorSearch, setCreatorSearch] = useState('');
   const [notesSearch, setNotesSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -134,7 +135,7 @@ export default function ExpensesPage() {
     setLoadingTooLong(false);
   }, [isLoading]);
 
-  // Client-side filter by expense type name and notes
+  // Client-side filter by expense type name, creator, and notes
   const filteredRecords = useMemo(() => {
     if (!records) return [];
     let result = records as any[];
@@ -142,6 +143,12 @@ export default function ExpensesPage() {
     if (expenseTypeSearch.trim()) {
       result = result.filter((r: any) =>
         fuzzyMatch(r.expenseTypeName || '', expenseTypeSearch)
+      );
+    }
+
+    if (creatorSearch.trim()) {
+      result = result.filter((r: any) =>
+        fuzzyMatch(r.createdByName || '', creatorSearch)
       );
     }
 
@@ -170,15 +177,16 @@ export default function ExpensesPage() {
     });
 
     return result;
-  }, [records, expenseTypeSearch, notesSearch, paymentFilter]);
+  }, [records, expenseTypeSearch, creatorSearch, notesSearch, paymentFilter]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (expenseTypeSearch.trim()) count++;
+    if (creatorSearch.trim()) count++;
     if (notesSearch.trim()) count++;
     if (paymentFilter !== 'all') count++;
     return count;
-  }, [expenseTypeSearch, notesSearch, paymentFilter]);
+  }, [expenseTypeSearch, creatorSearch, notesSearch, paymentFilter]);
 
   const utils = trpc.useUtils();
 
@@ -543,6 +551,8 @@ export default function ExpensesPage() {
               onDateRangeChange={setDateRange}
               expenseTypeSearch={expenseTypeSearch}
               onExpenseTypeSearchChange={setExpenseTypeSearch}
+              creatorSearch={creatorSearch}
+              onCreatorSearchChange={setCreatorSearch}
               notesSearch={notesSearch}
               onNotesSearchChange={setNotesSearch}
               paymentFilter={paymentFilter}
@@ -623,17 +633,6 @@ export default function ExpensesPage() {
                   </div>
                   {canCheck && (
                     <>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-xs',
-                          recordsSummary.checkActualCount === recordsSummary.totalRecords
-                            ? 'border-green-300 text-green-600'
-                            : ''
-                        )}
-                      >
-                        Đã chi {recordsSummary.checkActualCount}/{recordsSummary.totalRecords}
-                      </Badge>
                       <Badge
                         variant="outline"
                         className={cn(
@@ -750,11 +749,10 @@ export default function ExpensesPage() {
                         <TableHead className="font-semibold">Ngày</TableHead>
                       )}
                       <TableHead className="font-semibold">Loại chi</TableHead>
+                      <TableHead className="font-semibold">Ghi chú</TableHead>
                       <TableHead className="font-semibold text-right">Số tiền</TableHead>
-                      <TableHead className="font-semibold">Ng. nộp</TableHead>
                       <TableHead className="font-semibold">Ng. tạo</TableHead>
                       <TableHead className="font-semibold text-center w-24">KiotViet</TableHead>
-                      <TableHead className="font-semibold">Ghi chú</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -773,10 +771,12 @@ export default function ExpensesPage() {
                         <TableCell>
                           <span className="font-medium text-sm">{record.expenseTypeName}</span>
                         </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+                          {record.notes || ''}
+                        </TableCell>
                         <TableCell className="text-right font-bold tabular-nums text-primary">
                           {formatNumber(record.amount)}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{record.expenseTypeName}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{record.createdByName}</TableCell>
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                           {record.rpaStatus ? (
@@ -794,9 +794,6 @@ export default function ExpensesPage() {
                               }
                             />
                           )}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
-                          {record.notes || ''}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -826,11 +823,10 @@ export default function ExpensesPage() {
                             {record.rpaStatus ? getRpaStatusBadge(record) : null}
                           </div>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {!isSingleDay && <span>{formatDate(record.date)} ·</span>}
-                            <span>{record.expenseTypeName}</span>
+                            {!isSingleDay && <span>{formatDate(record.date)}</span>}
                             {record.notes && (
                               <>
-                                <span>·</span>
+                                {!isSingleDay && <span>·</span>}
                                 <span className="truncate">{record.notes}</span>
                               </>
                             )}
@@ -896,6 +892,8 @@ export default function ExpensesPage() {
         onDateRangeChange={setDateRange}
         expenseTypeSearch={expenseTypeSearch}
         onExpenseTypeSearchChange={setExpenseTypeSearch}
+        creatorSearch={creatorSearch}
+        onCreatorSearchChange={setCreatorSearch}
         notesSearch={notesSearch}
         onNotesSearchChange={setNotesSearch}
         paymentFilter={paymentFilter}

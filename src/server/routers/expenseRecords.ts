@@ -50,7 +50,7 @@ export const expenseRecordsRouter = router({
       }
 
       query = query.where('isActive', '==', true);
-      query = query.orderBy('date', 'desc').orderBy('createdAt', 'asc');
+      query = query.orderBy('date', 'desc').orderBy('createdAt', 'desc').orderBy('orderIndex', 'asc');
 
       if (input.limit) {
         query = query.limit(input.limit);
@@ -114,6 +114,7 @@ export const expenseRecordsRouter = router({
         createdBy: ctx.userData!.id,
         createdByName: ctx.userData!.displayName,
         createdAt: now,
+        orderIndex: 0,
         updatedAt: now,
         updatedBy: null,
         deletedBy: null,
@@ -144,7 +145,8 @@ export const expenseRecordsRouter = router({
       const now = FieldValue.serverTimestamp();
 
       const ids: string[] = [];
-      for (const record of input.records) {
+      for (let i = 0; i < input.records.length; i++) {
+        const record = input.records[i];
         const docRef = db.collection('expense_records').doc();
         batch.set(docRef, {
           date: input.date,
@@ -171,6 +173,7 @@ export const expenseRecordsRouter = router({
           createdBy: ctx.userData!.id,
           createdByName: ctx.userData!.displayName,
           createdAt: now,
+          orderIndex: i,
           updatedAt: now,
           updatedBy: null,
           deletedBy: null,

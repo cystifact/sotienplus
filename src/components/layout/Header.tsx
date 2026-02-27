@@ -36,7 +36,13 @@ export function Header() {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const { hasPermission, hasAnyModulePermission, role, userData } = useCurrentUserPermissions();
+  const { hasPermission, hasAnyModulePermission, role, userData, isLoading } = useCurrentUserPermissions();
+
+  // While permissions are loading, show all nav items (user is already authenticated by layout guard)
+  const canViewLedger = isLoading || hasPermission('ledger', 'view');
+  const canViewExpenses = isLoading || hasPermission('expenses', 'view');
+  const canViewUsers = isLoading || hasPermission('users', 'view');
+  const canViewKiotViet = isLoading || hasAnyModulePermission('kiotviet');
 
   const handleLogout = async () => {
     try {
@@ -64,7 +70,7 @@ export function Header() {
               <span className="font-bold text-lg text-primary">SoTienPlus</span>
             </Link>
             <nav className="flex items-center gap-1">
-              {hasPermission('ledger', 'view') && (
+              {canViewLedger && (
                 <Link href="/ledger">
                   <Button
                     variant={pathname.startsWith('/ledger') ? 'secondary' : 'ghost'}
@@ -76,7 +82,7 @@ export function Header() {
                   </Button>
                 </Link>
               )}
-              {hasPermission('expenses', 'view') && (
+              {canViewExpenses && (
                 <Link href="/expenses">
                   <Button
                     variant={pathname.startsWith('/expenses') ? 'secondary' : 'ghost'}
@@ -125,7 +131,7 @@ export function Header() {
       >
         <div className="grid grid-cols-4 h-14">
           {/* Sổ thu */}
-          {hasPermission('ledger', 'view') && (
+          {canViewLedger && (
             <Link
               href="/ledger"
               className={cn(
@@ -139,7 +145,7 @@ export function Header() {
           )}
 
           {/* Sổ chi */}
-          {hasPermission('expenses', 'view') && (
+          {canViewExpenses && (
             <Link
               href="/expenses"
               className={cn(
@@ -222,7 +228,7 @@ export function Header() {
             <p className="px-4 py-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
               Cài đặt
             </p>
-            {hasPermission('users', 'view') && (
+            {canViewUsers && (
               <button
                 onClick={() => handleDrawerLink('/settings/users')}
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-accent transition-colors"
@@ -238,7 +244,7 @@ export function Header() {
               <UserCheck className="h-4 w-4 text-muted-foreground" />
               Người nộp tiền
             </button>
-            {hasAnyModulePermission('kiotviet') && (
+            {canViewKiotViet && (
               <button
                 onClick={() => handleDrawerLink('/settings/kiotviet')}
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-accent transition-colors"

@@ -17,6 +17,8 @@ interface FilterSidebarProps {
   onDateRangeChange: (range: DateRange) => void;
   expenseTypeSearch: string;
   onExpenseTypeSearchChange: (value: string) => void;
+  creatorSearch: string;
+  onCreatorSearchChange: (value: string) => void;
   notesSearch: string;
   onNotesSearchChange: (value: string) => void;
   paymentFilter: PaymentFilter;
@@ -45,6 +47,8 @@ export function FilterSidebar({
   onDateRangeChange,
   expenseTypeSearch,
   onExpenseTypeSearchChange,
+  creatorSearch,
+  onCreatorSearchChange,
   notesSearch,
   onNotesSearchChange,
   paymentFilter,
@@ -79,6 +83,30 @@ export function FilterSidebar({
               size="icon"
               className="absolute right-0 top-0 h-full w-8 hover:bg-transparent"
               onClick={() => onExpenseTypeSearchChange('')}
+            >
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Creator Search */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-medium text-muted-foreground">Người tạo</Label>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <DebouncedInput
+            value={creatorSearch}
+            onChange={onCreatorSearchChange}
+            placeholder="Tìm người tạo..."
+            className="pl-8 h-9 text-sm"
+          />
+          {creatorSearch && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-0 h-full w-8 hover:bg-transparent"
+              onClick={() => onCreatorSearchChange('')}
             >
               <X className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
@@ -144,6 +172,7 @@ export function FilterSidebar({
             className="h-6 text-xs px-2"
             onClick={() => {
               onExpenseTypeSearchChange('');
+              onCreatorSearchChange('');
               onNotesSearchChange('');
               onPaymentFilterChange('all');
             }}

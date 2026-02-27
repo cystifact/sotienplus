@@ -17,6 +17,8 @@ interface MobileFilterSheetProps {
   onDateRangeChange: (range: DateRange) => void;
   expenseTypeSearch: string;
   onExpenseTypeSearchChange: (value: string) => void;
+  creatorSearch: string;
+  onCreatorSearchChange: (value: string) => void;
   notesSearch: string;
   onNotesSearchChange: (value: string) => void;
   paymentFilter: PaymentFilter;
@@ -32,6 +34,8 @@ export function MobileFilterSheet({
   onDateRangeChange,
   expenseTypeSearch,
   onExpenseTypeSearchChange,
+  creatorSearch,
+  onCreatorSearchChange,
   notesSearch,
   onNotesSearchChange,
   paymentFilter,
@@ -54,6 +58,8 @@ export function MobileFilterSheet({
             onDateRangeChange={onDateRangeChange}
             expenseTypeSearch={expenseTypeSearch}
             onExpenseTypeSearchChange={onExpenseTypeSearchChange}
+            creatorSearch={creatorSearch}
+            onCreatorSearchChange={onCreatorSearchChange}
             notesSearch={notesSearch}
             onNotesSearchChange={onNotesSearchChange}
             paymentFilter={paymentFilter}

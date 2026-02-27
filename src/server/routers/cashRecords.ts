@@ -58,7 +58,7 @@ export const cashRecordsRouter = router({
         query = query.where('collectorId', '==', input.collectorId);
       }
 
-      query = query.orderBy('date', 'desc').orderBy('createdAt', 'asc');
+      query = query.orderBy('date', 'desc').orderBy('createdAt', 'desc');
 
       const snapshot = await query.get();
       // Filter in application code — Firestore != excludes docs missing the field
