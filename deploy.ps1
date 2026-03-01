@@ -20,6 +20,7 @@ gcloud run deploy sotienplus `
     --region asia-southeast1 `
     --allow-unauthenticated `
     --project sotienplus `
+    --min-instances=1 `
     --quiet
 
 if ($LASTEXITCODE -ne 0) {

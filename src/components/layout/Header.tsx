@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { setSessionHint } from '@/lib/auth-store';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
 
 export function Header() {
@@ -45,6 +46,7 @@ export function Header() {
   const canViewKiotViet = isLoading || hasAnyModulePermission('kiotviet');
 
   const handleLogout = async () => {
+    setSessionHint(false);
     try {
       await fetch('/api/session/logout', { method: 'POST', credentials: 'include' });
       await signOut(auth);

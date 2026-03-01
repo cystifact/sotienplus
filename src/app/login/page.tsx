@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
+import { setSessionHint } from '@/lib/auth-store';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,6 +34,10 @@ export default function LoginPage() {
         ? emailOrUsername
         : `${emailOrUsername}@sotienplus.local`;
 
+      // Wait for Firebase Auth to finish initializing from IndexedDB
+      // before attempting sign-in (prevents stale state conflicts)
+      await auth.authStateReady();
+
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
 
       // Create session cookie BEFORE navigating so middleware allows the redirect
@@ -44,18 +49,25 @@ export default function LoginPage() {
         body: JSON.stringify({ idToken }),
       });
 
+      setSessionHint(true);
       toast.success('Đăng nhập thành công');
       router.push('/ledger');
     } catch (error: unknown) {
       console.error('Login error:', error);
-      const err = error as { code?: string };
+      const err = error as { code?: string; message?: string };
 
       if (err.code === 'auth/invalid-credential') {
         toast.error('Username hoặc mật khẩu không đúng');
       } else if (err.code === 'auth/user-disabled') {
         toast.error('Tài khoản đã bị vô hiệu hóa');
+      } else if (err.code === 'auth/network-request-failed') {
+        toast.error('Lỗi kết nối mạng. Vui lòng kiểm tra internet.');
       } else {
-        toast.error('Đăng nhập thất bại. Vui lòng thử lại.');
+        // Unknown error - likely browser extension or corrupted cache
+        toast.error(
+          'Đăng nhập thất bại. Thử tắt extension hoặc xoá cache trình duyệt (Ctrl+Shift+Delete).',
+          { duration: 8000 }
+        );
       }
     } finally {
       setIsLoading(false);

@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { Toaster } from 'sonner';
 import TRPCProvider from '@/_trpc/Provider';
 import { auth } from '@/lib/firebase';
-import { useAuthStore } from '@/lib/auth-store';
+import { useAuthStore, setSessionHint } from '@/lib/auth-store';
 import { onAuthStateChanged } from 'firebase/auth';
 
 function useSyncServerSession(user: any) {
@@ -19,6 +19,7 @@ function useSyncServerSession(user: any) {
       if (hadUserRef.current) {
         // User was logged in and now logged out — sync server session
         hadUserRef.current = false;
+        setSessionHint(false);
         fetch('/api/session/logout', {
           method: 'POST',
           credentials: 'include',
@@ -38,7 +39,9 @@ function useSyncServerSession(user: any) {
           credentials: 'include',
           body: JSON.stringify({ idToken }),
         });
-        if (!res.ok) {
+        if (res.ok) {
+          setSessionHint(true);
+        } else {
           console.warn('[SessionSync] Failed to sync session:', res.status);
         }
         lastSyncRef.current = Date.now();

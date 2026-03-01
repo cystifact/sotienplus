@@ -15,6 +15,7 @@ export default function AuthenticatedLayout({
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const authChecked = useAuthStore((state) => state.authChecked);
+  const sessionHint = useAuthStore((state) => state.sessionHint);
 
   useEffect(() => {
     if (authChecked && !user) {
@@ -22,7 +23,7 @@ export default function AuthenticatedLayout({
     }
   }, [user, authChecked, router]);
 
-  if (!authChecked) {
+  if (!authChecked && !sessionHint) {
     return (
       <div className="min-h-screen bg-background">
         {/* Skeleton header */}
@@ -50,7 +51,7 @@ export default function AuthenticatedLayout({
     );
   }
 
-  if (!user) {
+  if (authChecked && !user) {
     return null;
   }
 
