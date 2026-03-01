@@ -180,6 +180,33 @@ export default function LedgerPage() {
     return result;
   }, [records, collectorSearch, customerSearch, notesSearch, paymentFilter, actualReceivedFilter]);
 
+  // Tìm các record có thể trùng: cùng ngày, cùng khách hàng, chênh số tiền ≤ 2000
+  const nearDuplicateIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!records || (records as any[]).length === 0) return ids;
+
+    const groups = new Map<string, any[]>();
+    for (const record of records as any[]) {
+      const key = `${record.date}|${(record.customerName as string).toLowerCase().trim()}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(record);
+    }
+
+    for (const group of groups.values()) {
+      if (group.length < 2) continue;
+      for (let i = 0; i < group.length; i++) {
+        for (let j = i + 1; j < group.length; j++) {
+          if (Math.abs(group[i].amount - group[j].amount) <= 2000) {
+            ids.add(group[i].id);
+            ids.add(group[j].id);
+          }
+        }
+      }
+    }
+
+    return ids;
+  }, [records]);
+
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (collectorSearch.trim()) count++;
@@ -818,7 +845,14 @@ export default function LedgerPage() {
                           <TableCell className="text-sm">{formatDate(record.date)}</TableCell>
                         )}
                         <TableCell>
-                          <span className="font-medium text-sm">{record.customerName}</span>
+                          <div className="flex items-center gap-1">
+                            {nearDuplicateIds.has(record.id) && (
+                              <span title="Cảnh báo: có thể nhập trùng — cùng khách hàng, số tiền gần tương tự trong ngày">
+                                <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                              </span>
+                            )}
+                            <span className="font-medium text-sm">{record.customerName}</span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-bold tabular-nums text-primary">
                           {formatNumber(record.amount)}
@@ -883,6 +917,11 @@ export default function LedgerPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
+                            {nearDuplicateIds.has(record.id) && (
+                              <span title="Cảnh báo: có thể nhập trùng">
+                                <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                              </span>
+                            )}
                             <span className="font-medium text-sm truncate">
                               {record.customerName}
                             </span>

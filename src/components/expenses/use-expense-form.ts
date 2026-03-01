@@ -188,7 +188,10 @@ export function useExpenseForm({
   const isViewOnly = isEditMode && !canEdit;
 
   const utils = trpc.useUtils();
-  const { data: expenseTypes } = trpc.expenseTypes.list.useQuery();
+  const { data: expenseTypes } = trpc.expenseTypes.list.useQuery(undefined, {
+    enabled: open,
+    staleTime: 10 * 60 * 1000,
+  });
 
   const bulkCreateMutation = trpc.expenseRecords.bulkCreate.useMutation({
     onSuccess: (data) => {

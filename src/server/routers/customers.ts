@@ -22,10 +22,16 @@ export const customersRouter = router({
         const code = (doc.data().code as string) || '';
         return !EXCLUDED_CODE_PREFIXES.some((p) => code.startsWith(p));
       })
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      .map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          name: d.name as string,
+          code: (d.code as string) || '',
+          phone: (d.phone as string) || '',
+          debt: (d.debt as number) || 0,
+        };
+      });
   }),
 
   sync: protectedProcedure

@@ -503,6 +503,12 @@ export const cashRecordsRouter = router({
         const duplicates = existingRecords.filter(
           (r) => r.customerName === entry.customerName && r.amount === entry.amount
         );
+        const nearDuplicates = existingRecords.filter(
+          (r) =>
+            r.customerName.toLowerCase() === entry.customerName.toLowerCase() &&
+            Math.abs(r.amount - entry.amount) < 2000 &&
+            r.amount !== entry.amount
+        );
         return {
           customerName: entry.customerName,
           amount: entry.amount,
@@ -511,6 +517,13 @@ export const cashRecordsRouter = router({
             id: d.id,
             collectorName: d.collectorName,
             createdByName: d.createdByName,
+          })),
+          hasNearDuplicate: nearDuplicates.length > 0,
+          nearDuplicates: nearDuplicates.map((d) => ({
+            id: d.id,
+            collectorName: d.collectorName,
+            createdByName: d.createdByName,
+            amount: d.amount,
           })),
         };
       });

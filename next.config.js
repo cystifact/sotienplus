@@ -13,6 +13,19 @@ const withPWA = require('next-pwa')({
 
   runtimeCaching: [
     {
+      // Always fetch pages from network first to prevent blank page after deploy
+      urlPattern: ({ request }) => request.mode === 'navigate',
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'pages',
+        networkTimeoutSeconds: 5,
+        expiration: {
+          maxEntries: 30,
+          maxAgeSeconds: 24 * 60 * 60,
+        },
+      },
+    },
+    {
       urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
       handler: 'CacheFirst',
       options: {

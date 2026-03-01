@@ -8,10 +8,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ViDateInput } from '@/components/ui/vi-date-input';
 import { AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { useExpenseForm } from './use-expense-form';
@@ -79,7 +79,7 @@ export function ExpenseForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col w-[calc(100%-1rem)] sm:w-full rounded-lg p-0">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col w-[calc(100%-1rem)] sm:w-full rounded-lg p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
         {/* Header */}
         <DialogHeader className="px-4 pt-4 pb-0 sm:px-6 sm:pt-6">
           <div className="flex items-center justify-between">
@@ -134,25 +134,12 @@ export function ExpenseForm({
           <div className="px-4 pt-3 pb-2 space-y-3 sm:px-6">
             <div className="space-y-1.5 max-w-[200px]">
               <Label htmlFor="date" className="text-xs">Ngày</Label>
-              <Input
+              <ViDateInput
                 id="date"
-                type="date"
                 value={state.date}
-                onChange={(e) => dispatch({ type: 'SET_DATE', date: e.target.value })}
+                onChange={(v) => dispatch({ type: 'SET_DATE', date: v })}
                 disabled={isViewOnly}
                 required
-                autoFocus={false}
-                readOnly
-                onFocus={(e) => {
-                  // Remove readonly on focus to allow date picker
-                  e.currentTarget.readOnly = false;
-                }}
-                onBlur={(e) => {
-                  // Re-add readonly after blur to prevent auto-focus calendar
-                  setTimeout(() => {
-                    e.currentTarget.readOnly = true;
-                  }, 100);
-                }}
               />
             </div>
           </div>

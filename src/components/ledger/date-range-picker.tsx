@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ViDateInput } from '@/components/ui/vi-date-input';
 import {
   Popover,
   PopoverContent,
@@ -125,46 +125,47 @@ export function DateRangePicker({ value, onChange, className, disabled }: DateRa
           <span className="truncate">{displayLabel}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <div className="flex flex-col sm:flex-row">
-          {/* Quick presets */}
-          <div className="border-b sm:border-b-0 sm:border-r p-2 space-y-0.5 sm:w-[120px] shrink-0">
-            <p className="text-xs font-medium text-muted-foreground mb-1 px-2">Chọn nhanh</p>
-            {presets.map((preset) => (
-              <Button
-                key={preset.key}
-                variant={activePreset === preset.key ? 'secondary' : 'ghost'}
-                size="sm"
-                className={cn(
-                  'w-full justify-start text-xs h-7 px-2',
-                  activePreset === preset.key && 'bg-primary/10 text-primary font-medium'
-                )}
-                onClick={() => handlePreset(preset)}
-              >
-                {preset.label}
-              </Button>
-            ))}
+      <PopoverContent className="p-0 w-[min(calc(100vw-2rem),300px)]" align="start">
+        <div className="flex flex-col">
+          {/* Quick presets - chip style */}
+          <div className="p-2.5 border-b">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Chọn nhanh</p>
+            <div className="flex flex-wrap gap-1.5">
+              {presets.map((preset) => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => handlePreset(preset)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors',
+                    activePreset === preset.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
           {/* Custom range */}
-          <div className="p-3 space-y-3">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Tùy chỉnh</p>
-            <div className="space-y-2">
+          <div className="p-2.5 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Tùy chỉnh</p>
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Từ ngày</Label>
-                <Input
-                  type="date"
+                <ViDateInput
                   value={value.from}
-                  onChange={(e) => onChange({ ...value, from: e.target.value })}
-                  className="h-8 text-sm"
+                  onChange={(v) => onChange({ ...value, from: v })}
+                  className="h-8 text-xs px-2"
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Đến ngày</Label>
-                <Input
-                  type="date"
+                <ViDateInput
                   value={value.to}
-                  onChange={(e) => onChange({ ...value, to: e.target.value })}
-                  className="h-8 text-sm"
+                  onChange={(v) => onChange({ ...value, to: v })}
+                  className="h-8 text-xs px-2"
                 />
               </div>
             </div>

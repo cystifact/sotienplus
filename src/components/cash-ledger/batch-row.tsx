@@ -27,6 +27,7 @@ interface BatchRowProps {
   onUpdate: (rowId: string, field: 'customerName' | 'amount' | 'notes', value: string | number) => void;
   onRemove: (rowId: string) => void;
   onAcknowledgeDuplicate: (rowId: string) => void;
+  onAcknowledgeNearDuplicate: (rowId: string) => void;
 }
 
 export const BatchRow = React.memo(function BatchRow({
@@ -40,6 +41,7 @@ export const BatchRow = React.memo(function BatchRow({
   onUpdate,
   onRemove,
   onAcknowledgeDuplicate,
+  onAcknowledgeNearDuplicate,
 }: BatchRowProps) {
   const amountRef = useRef<HTMLInputElement>(null);
   const [showNotes, setShowNotes] = useState(!!row.notes);
@@ -174,6 +176,31 @@ export const BatchRow = React.memo(function BatchRow({
             variant="outline"
             className="h-6 text-xs shrink-0"
             onClick={() => onAcknowledgeDuplicate(row.id)}
+          >
+            Vẫn thêm
+          </Button>
+        </div>
+      )}
+
+      {/* Near-duplicate warning */}
+      {row.nearDuplicateWarning && !row.nearDuplicateAcknowledged && (
+        <div className="flex items-start gap-2 p-2 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded text-xs">
+          <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium">Cảnh báo: có thể nhập trùng</p>
+            <p className="text-muted-foreground">Khách hàng đã có bản ghi trong ngày với số tiền gần tương tự:</p>
+            {row.nearDuplicateWarning.map((d, i) => (
+              <p key={i} className="text-muted-foreground">
+                — {formatCurrency(d.amount)} ({d.collectorName}, bởi: {d.createdByName})
+              </p>
+            ))}
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-6 text-xs shrink-0"
+            onClick={() => onAcknowledgeNearDuplicate(row.id)}
           >
             Vẫn thêm
           </Button>

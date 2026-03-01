@@ -52,7 +52,7 @@ export function MobileFilterSheet({
             Lọc danh sách chi phí theo ngày, loại chi, trạng thái thanh toán
           </SheetDescription>
         </SheetHeader>
-        <div className="pb-40">
+        <div className="pb-6">
           <FilterSidebar
             dateRange={dateRange}
             onDateRangeChange={onDateRangeChange}

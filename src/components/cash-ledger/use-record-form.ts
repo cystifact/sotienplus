@@ -17,6 +17,8 @@ export interface BatchRow {
   errors: Record<string, string>;
   duplicateWarning: { id: string; collectorName: string; createdByName: string }[] | null;
   duplicateAcknowledged: boolean;
+  nearDuplicateWarning: { id: string; collectorName: string; createdByName: string; amount: number }[] | null;
+  nearDuplicateAcknowledged: boolean;
 }
 
 interface FormState {
@@ -36,6 +38,8 @@ type FormAction =
   | { type: 'SET_ROW_ERRORS'; errors: { rowId: string; errors: Record<string, string> }[] }
   | { type: 'SET_ROW_DUPLICATE'; rowId: string; duplicates: { id: string; collectorName: string; createdByName: string }[] }
   | { type: 'ACKNOWLEDGE_DUPLICATE'; rowId: string }
+  | { type: 'SET_ROW_NEAR_DUPLICATE'; rowId: string; nearDuplicates: { id: string; collectorName: string; createdByName: string; amount: number }[] }
+  | { type: 'ACKNOWLEDGE_NEAR_DUPLICATE'; rowId: string }
   | { type: 'CLEAR_DUPLICATES' }
   | { type: 'RESET'; defaultDate: string }
   | { type: 'LOAD_EDIT'; record: any; defaultDate: string };
@@ -54,6 +58,8 @@ function createEmptyRow(): BatchRow {
     errors: {},
     duplicateWarning: null,
     duplicateAcknowledged: false,
+    nearDuplicateWarning: null,
+    nearDuplicateAcknowledged: false,
   };
 }
 
@@ -140,6 +146,24 @@ function formReducer(state: FormState, action: FormAction): FormState {
         ),
       };
 
+    case 'SET_ROW_NEAR_DUPLICATE':
+      return {
+        ...state,
+        rows: state.rows.map((r) =>
+          r.id === action.rowId
+            ? { ...r, nearDuplicateWarning: action.nearDuplicates, nearDuplicateAcknowledged: false }
+            : r
+        ),
+      };
+
+    case 'ACKNOWLEDGE_NEAR_DUPLICATE':
+      return {
+        ...state,
+        rows: state.rows.map((r) =>
+          r.id === action.rowId ? { ...r, nearDuplicateAcknowledged: true } : r
+        ),
+      };
+
     case 'CLEAR_DUPLICATES':
       return {
         ...state,
@@ -147,6 +171,8 @@ function formReducer(state: FormState, action: FormAction): FormState {
           ...r,
           duplicateWarning: null,
           duplicateAcknowledged: false,
+          nearDuplicateWarning: null,
+          nearDuplicateAcknowledged: false,
         })),
       };
 
@@ -169,6 +195,8 @@ function formReducer(state: FormState, action: FormAction): FormState {
             errors: {},
             duplicateWarning: null,
             duplicateAcknowledged: false,
+            nearDuplicateWarning: null,
+            nearDuplicateAcknowledged: false,
           },
         ],
       };
@@ -202,8 +230,14 @@ export function useRecordForm({
   const isViewOnly = isEditMode && !canEdit;
 
   const utils = trpc.useUtils();
-  const { data: customers } = trpc.customers.list.useQuery();
-  const { data: collectors } = trpc.collectors.list.useQuery();
+  const { data: customers } = trpc.customers.list.useQuery(undefined, {
+    enabled: open,
+    staleTime: 10 * 60 * 1000, // 10 min — KH list ít thay đổi
+  });
+  const { data: collectors } = trpc.collectors.list.useQuery(undefined, {
+    enabled: open,
+    staleTime: 10 * 60 * 1000,
+  });
 
   const bulkCreateMutation = trpc.cashRecords.bulkCreate.useMutation({
     onSuccess: (data) => {
@@ -390,9 +424,9 @@ export function useRecordForm({
         return;
       }
 
-      // Check duplicates (only for rows not yet acknowledged)
+      // Check duplicates (only for rows not yet fully acknowledged)
       const rowsToCheck = nonEmptyRows.filter(
-        (r) => !r.duplicateAcknowledged
+        (r) => !r.duplicateAcknowledged || !r.nearDuplicateAcknowledged
       );
 
       if (rowsToCheck.length > 0) {
@@ -406,18 +440,28 @@ export function useRecordForm({
           });
 
           let hasDuplicates = false;
+          let hasNearDuplicates = false;
           dupResult.results.forEach((result, index) => {
-            if (result.hasDuplicate) {
+            const row = rowsToCheck[index];
+            if (result.hasDuplicate && !row.duplicateAcknowledged) {
               hasDuplicates = true;
               dispatch({
                 type: 'SET_ROW_DUPLICATE',
-                rowId: rowsToCheck[index].id,
+                rowId: row.id,
                 duplicates: result.duplicates,
+              });
+            }
+            if (result.hasNearDuplicate && !row.nearDuplicateAcknowledged) {
+              hasNearDuplicates = true;
+              dispatch({
+                type: 'SET_ROW_NEAR_DUPLICATE',
+                rowId: row.id,
+                nearDuplicates: result.nearDuplicates,
               });
             }
           });
 
-          if (hasDuplicates) {
+          if (hasDuplicates || hasNearDuplicates) {
             return;
           }
         } catch {
