@@ -158,6 +158,7 @@ export default function LedgerPage() {
         if (paymentFilter === 'paid') return isPaid && !needsCorrection;
         if (paymentFilter === 'unpaid') return !isPaid;
         if (paymentFilter === 'needs_correction') return needsCorrection;
+        if (paymentFilter === 'failed') return r.rpaStatus === 'failed';
         return true;
       });
     }
@@ -181,13 +182,14 @@ export default function LedgerPage() {
   }, [records, collectorSearch, customerSearch, notesSearch, paymentFilter, actualReceivedFilter]);
 
   // Tìm các record có thể trùng: cùng ngày, cùng khách hàng, chênh số tiền ≤ 2000
-  const nearDuplicateIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (!records || (records as any[]).length === 0) return ids;
+  // Map: record ID → danh sách số tiền của các record conflict
+  const nearDuplicateMap = useMemo(() => {
+    const map = new Map<string, number[]>();
+    if (!records || (records as any[]).length === 0) return map;
 
     const groups = new Map<string, any[]>();
     for (const record of records as any[]) {
-      const key = `${record.date}|${(record.customerName as string).toLowerCase().trim()}`;
+      const key = `${record.date}|${(record.customerName ?? '').toLowerCase().trim()}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(record);
     }
@@ -197,14 +199,16 @@ export default function LedgerPage() {
       for (let i = 0; i < group.length; i++) {
         for (let j = i + 1; j < group.length; j++) {
           if (Math.abs(group[i].amount - group[j].amount) <= 2000) {
-            ids.add(group[i].id);
-            ids.add(group[j].id);
+            if (!map.has(group[i].id)) map.set(group[i].id, []);
+            map.get(group[i].id)!.push(group[j].amount);
+            if (!map.has(group[j].id)) map.set(group[j].id, []);
+            map.get(group[j].id)!.push(group[i].amount);
           }
         }
       }
     }
 
-    return ids;
+    return map;
   }, [records]);
 
   const activeFilterCount = useMemo(() => {
@@ -691,9 +695,15 @@ export default function LedgerPage() {
                       </span>
                     </div>
                   )}
-                  <div className="text-muted-foreground">
-                    {recordsSummary.totalRecords} bản ghi
-                  </div>
+                  {nearDuplicateMap.size > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs border-amber-400 text-amber-600 bg-amber-50 dark:bg-amber-950/30"
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      {nearDuplicateMap.size} giao dịch có thể trùng
+                    </Badge>
+                  )}
                   {canCheck && (
                     <>
                       <Badge
@@ -846,8 +856,8 @@ export default function LedgerPage() {
                         )}
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            {nearDuplicateIds.has(record.id) && (
-                              <span title="Cảnh báo: có thể nhập trùng — cùng khách hàng, số tiền gần tương tự trong ngày">
+                            {nearDuplicateMap.has(record.id) && (
+                              <span title="Có thể trùng">
                                 <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
                               </span>
                             )}
@@ -917,8 +927,8 @@ export default function LedgerPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            {nearDuplicateIds.has(record.id) && (
-                              <span title="Cảnh báo: có thể nhập trùng">
+                            {nearDuplicateMap.has(record.id) && (
+                              <span title="Có thể trùng">
                                 <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
                               </span>
                             )}

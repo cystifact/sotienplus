@@ -165,6 +165,7 @@ export default function ExpensesPage() {
         if (paymentFilter === 'paid') return isPaid && !needsCorrection;
         if (paymentFilter === 'unpaid') return !isPaid;
         if (paymentFilter === 'needs_correction') return needsCorrection;
+        if (paymentFilter === 'failed') return r.rpaStatus === 'failed';
         return true;
       });
     }

@@ -318,13 +318,22 @@ export const expenseRecordsRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const db = getAdminDb();
-      await db.collection('expense_records').doc(input.id).update({
+      const doc = await db.collection('expense_records').doc(input.id).get();
+      const data = doc.data() ?? {};
+      const updateData: Record<string, unknown> = {
         isActive: false,
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: ctx.userData!.id,
         deletedBy: ctx.userData!.id,
         deletedAt: FieldValue.serverTimestamp(),
-      });
+      };
+      // Cancel RPA if still pending/processing so daemon doesn't process deleted records
+      if (data.rpaStatus === 'pending' || data.rpaStatus === 'processing') {
+        updateData.rpaStatus = 'cancelled';
+        updateData.rpaProcessingBy = null;
+        updateData.rpaProcessingAt = null;
+      }
+      await db.collection('expense_records').doc(input.id).update(updateData);
       return { success: true };
     }),
 

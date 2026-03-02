@@ -261,9 +261,10 @@ export const cashRecordsRouter = router({
         }
 
         const isAdmin = ctx.userData!.role === 'admin';
+        const canEditAny = isAdmin || hasPermission(ctx.permissions, 'ledger', 'edit_any');
 
-        // Non-admin: restricted to own records, same day (Vietnam timezone)
-        if (!isAdmin) {
+        // Without edit_any: restricted to own records, same day (Vietnam timezone)
+        if (!canEditAny) {
           if (data.createdBy !== ctx.userData!.id) {
             throw new TRPCError({ code: 'FORBIDDEN', message: 'Bạn chỉ được sửa bản ghi của mình' });
           }
@@ -328,13 +329,21 @@ export const cashRecordsRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Bản ghi không tồn tại' });
       }
       // Soft delete: mark as inactive instead of removing
-      await db.collection('cash_records').doc(input.id).update({
+      const data = doc.data()!;
+      const updateData: Record<string, unknown> = {
         isActive: false,
         deletedAt: FieldValue.serverTimestamp(),
         deletedBy: ctx.userData!.id,
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: ctx.userData!.id,
-      });
+      };
+      // Cancel RPA if still pending/processing so daemon doesn't process deleted records
+      if (data.rpaStatus === 'pending' || data.rpaStatus === 'processing') {
+        updateData.rpaStatus = 'cancelled';
+        updateData.rpaProcessingBy = null;
+        updateData.rpaProcessingAt = null;
+      }
+      await db.collection('cash_records').doc(input.id).update(updateData);
       return { success: true };
     }),
 

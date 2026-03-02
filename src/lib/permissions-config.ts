@@ -13,6 +13,7 @@ export const AVAILABLE_PERMISSIONS: Omit<Permission, 'granted'>[] = [
   { module: 'ledger', action: 'view', label: 'Xem sổ ghi tiền' },
   { module: 'ledger', action: 'create', label: 'Thêm bản ghi mới' },
   { module: 'ledger', action: 'edit', label: 'Sửa bản ghi' },
+  { module: 'ledger', action: 'edit_any', label: 'Sửa bản ghi của người khác' },
   { module: 'ledger', action: 'delete', label: 'Xóa bản ghi' },
   { module: 'ledger', action: 'check', label: 'Duyệt tiền (tick ✓)' },
   { module: 'ledger', action: 'bulk_check', label: 'Duyệt hàng loạt' },
@@ -66,7 +67,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   admin: AVAILABLE_PERMISSIONS.map((p) => ({ ...p, granted: true })),
 
   manager: withGrants({
-    ledger: ['view', 'create', 'edit', 'delete', 'check', 'bulk_check', 'view_total', 'export', 'rpa_sync', 'date_filter'],
+    ledger: ['view', 'create', 'edit', 'edit_any', 'delete', 'check', 'bulk_check', 'view_total', 'export', 'rpa_sync', 'date_filter'],
     expenses: ['view', 'create', 'edit', 'delete', 'check', 'bulk_check', 'view_total', 'export', 'import', 'rpa_sync', 'date_filter', 'manage_types'],
     collectors: ['view', 'create', 'edit', 'delete'],
     users: ['view'],

@@ -9,7 +9,7 @@ import { DebouncedInput } from '@/components/ui/debounced-input';
 import { DateRangePicker, type DateRange } from './date-range-picker';
 import { cn } from '@/lib/utils';
 
-export type PaymentFilter = 'all' | 'paid' | 'unpaid' | 'needs_correction';
+export type PaymentFilter = 'all' | 'paid' | 'unpaid' | 'needs_correction' | 'failed';
 export type ActualReceivedFilter = 'all' | 'received' | 'not_received';
 
 interface FilterSidebarProps {
@@ -34,6 +34,7 @@ const PAYMENT_OPTIONS: { value: PaymentFilter; label: string }[] = [
   { value: 'paid', label: 'Đã TT' },
   { value: 'unpaid', label: 'Chưa TT' },
   { value: 'needs_correction', label: 'KV cần sửa' },
+  { value: 'failed', label: 'Bị lỗi' },
 ];
 
 const ACTUAL_RECEIVED_OPTIONS: { value: ActualReceivedFilter; label: string }[] = [
