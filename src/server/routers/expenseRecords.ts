@@ -4,6 +4,7 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { TRPCError } from '@trpc/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { hasPermission } from '../lib/permission-utils';
+import { enforcePeriodLock } from '../lib/period-lock';
 
 /** Get today's date in Vietnam timezone (server-side, timezone-safe) */
 function getVietnamToday(): string {
@@ -96,6 +97,8 @@ export const expenseRecordsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await enforcePeriodLock(input.date, ctx.userData!.role === 'admin');
+
       const db = getAdminDb();
       const now = FieldValue.serverTimestamp();
       const isImported = input.importedFromExcel || false;
@@ -151,6 +154,8 @@ export const expenseRecordsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await enforcePeriodLock(input.date, ctx.userData!.role === 'admin');
+
       const db = getAdminDb();
       const batch = db.batch();
       const now = FieldValue.serverTimestamp();
@@ -214,6 +219,15 @@ export const expenseRecordsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Check all unique dates in the import batch against period lock
+      const isAdmin = ctx.userData!.role === 'admin';
+      if (!isAdmin) {
+        const uniqueDates = [...new Set(input.records.map((r) => r.date))];
+        for (const date of uniqueDates) {
+          await enforcePeriodLock(date, false);
+        }
+      }
+
       const db = getAdminDb();
       const batch = db.batch();
       const now = FieldValue.serverTimestamp();
@@ -279,6 +293,9 @@ export const expenseRecordsRouter = router({
       }
 
       const existing = doc.data();
+
+      await enforcePeriodLock(existing?.date as string, ctx.userData!.role === 'admin');
+
       const firestoreUpdate: Record<string, any> = {
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: ctx.userData!.id,
@@ -320,6 +337,9 @@ export const expenseRecordsRouter = router({
       const db = getAdminDb();
       const doc = await db.collection('expense_records').doc(input.id).get();
       const data = doc.data() ?? {};
+
+      await enforcePeriodLock(data.date as string, ctx.userData!.role === 'admin');
+
       const updateData: Record<string, unknown> = {
         isActive: false,
         updatedAt: FieldValue.serverTimestamp(),
@@ -348,6 +368,13 @@ export const expenseRecordsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const db = getAdminDb();
+      const doc = await db.collection('expense_records').doc(input.id).get();
+      if (!doc.exists || doc.data()?.isActive === false) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Bản ghi không tồn tại' });
+      }
+
+      await enforcePeriodLock(doc.data()!.date, ctx.userData!.role === 'admin');
+
       await db.collection('expense_records').doc(input.id).update({
         [input.field]: input.value,
         updatedAt: FieldValue.serverTimestamp(),
@@ -366,6 +393,8 @@ export const expenseRecordsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await enforcePeriodLock(input.date, ctx.userData!.role === 'admin');
+
       const db = getAdminDb();
       const snapshot = await db.collection('expense_records')
         .where('date', '==', input.date)

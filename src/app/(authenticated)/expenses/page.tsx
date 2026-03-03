@@ -48,10 +48,12 @@ import {
   Filter,
   Pencil,
   Trash2,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ExpenseForm } from '@/components/expenses/expense-form';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
+import { usePeriodLock } from '@/hooks/use-period-lock';
 
 // Lazy load ExcelImport - only loaded when user clicks import button
 const ExcelImport = dynamic(
@@ -100,6 +102,9 @@ export default function ExpensesPage() {
   const canRpaSync = hasPermission('expenses', 'rpa_sync');
   const canSyncKiotViet = hasPermission('kiotviet', 'sync');
   const canDateFilter = hasPermission('expenses', 'date_filter');
+
+  const { isDateLocked, lockDate } = usePeriodLock();
+  const isCurrentViewLocked = isDateLocked(dateRange.from);
 
   // Derived state
   const isSingleDay = dateRange.from === dateRange.to;
@@ -506,6 +511,12 @@ export default function ExpensesPage() {
         <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
           <BookOpen className="h-5 w-5 sm:h-6 sm:w-6" />
           Sổ chi tiền
+          {isCurrentViewLocked && (
+            <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 text-xs font-normal ml-1">
+              <Lock className="w-3 h-3 mr-1" />
+              Đã khóa sổ
+            </Badge>
+          )}
         </h1>
         <div className="flex items-center gap-2">
           {/* Mobile filter button */}
@@ -525,18 +536,20 @@ export default function ExpensesPage() {
           </Button>
           {canCreate && (
             <>
-              <Button size="sm" className="hidden md:inline-flex" onClick={() => { setEditRecord(null); setShowForm(true); }}>
-                <Plus className="w-4 h-4 mr-1" />
+              <Button size="sm" className="hidden md:inline-flex" onClick={() => { setEditRecord(null); setShowForm(true); }} disabled={isCurrentViewLocked} title={isCurrentViewLocked ? `Đã khóa sổ đến ${lockDate}` : undefined}>
+                {isCurrentViewLocked ? <Lock className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
                 Thêm mới
               </Button>
               {/* Mobile FAB */}
-              <Button
-                size="icon"
-                className="md:hidden fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-50"
-                onClick={() => { setEditRecord(null); setShowForm(true); }}
-              >
-                <Plus className="h-6 w-6" />
-              </Button>
+              {!isCurrentViewLocked && (
+                <Button
+                  size="icon"
+                  className="md:hidden fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-50"
+                  onClick={() => { setEditRecord(null); setShowForm(true); }}
+                >
+                  <Plus className="h-6 w-6" />
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -761,10 +774,10 @@ export default function ExpensesPage() {
                       <TableRow
                         key={record.id}
                         className={cn(
-                          canEditRecord && 'cursor-pointer hover:bg-accent/50',
+                          canEditRecord && !isDateLocked(record.date) && 'cursor-pointer hover:bg-accent/50',
                           record.rpaNeedsKiotVietCorrection && !record.rpaKiotVietCorrected && 'border-l-2 border-l-orange-400 bg-orange-50/50'
                         )}
-                        onClick={canEditRecord ? () => handleEdit(record) : undefined}
+                        onClick={canEditRecord && !isDateLocked(record.date) ? () => handleEdit(record) : undefined}
                       >
                         {!isSingleDay && (
                           <TableCell className="text-sm">{formatDate(record.date)}</TableCell>
@@ -809,10 +822,10 @@ export default function ExpensesPage() {
                     key={record.id}
                     className={cn(
                       'transition-colors',
-                      canEditRecord && 'cursor-pointer hover:bg-accent/50',
+                      canEditRecord && !isDateLocked(record.date) && 'cursor-pointer hover:bg-accent/50',
                       record.rpaNeedsKiotVietCorrection && !record.rpaKiotVietCorrected && 'border-l-2 border-l-orange-400 bg-orange-50/50'
                     )}
-                    onClick={canEditRecord ? () => handleEdit(record) : undefined}
+                    onClick={canEditRecord && !isDateLocked(record.date) ? () => handleEdit(record) : undefined}
                   >
                     <CardContent className="p-3">
                       <div className="flex items-start justify-between gap-2">

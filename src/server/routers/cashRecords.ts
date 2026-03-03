@@ -4,6 +4,7 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { TRPCError } from '@trpc/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { hasPermission } from '../lib/permission-utils';
+import { enforcePeriodLock } from '../lib/period-lock';
 
 // Customer codes that should skip RPA (e.g. internal/transfer accounts)
 const RPA_SKIP_CODE_PREFIXES = ['XB'];
@@ -91,6 +92,8 @@ export const cashRecordsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await enforcePeriodLock(input.date, ctx.userData!.role === 'admin');
+
       const db = getAdminDb();
       const now = FieldValue.serverTimestamp();
 
@@ -146,6 +149,8 @@ export const cashRecordsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await enforcePeriodLock(input.date, ctx.userData!.role === 'admin');
+
       const db = getAdminDb();
       const now = FieldValue.serverTimestamp();
 
@@ -261,6 +266,14 @@ export const cashRecordsRouter = router({
         }
 
         const isAdmin = ctx.userData!.role === 'admin';
+
+        // Period lock: check existing record date
+        await enforcePeriodLock(data.date, isAdmin);
+        // Also check new date if being changed
+        if (updateData.date && updateData.date !== data.date) {
+          await enforcePeriodLock(updateData.date, isAdmin);
+        }
+
         const canEditAny = isAdmin || hasPermission(ctx.permissions, 'ledger', 'edit_any');
 
         // Without edit_any: restricted to own records, same day (Vietnam timezone)
@@ -328,8 +341,11 @@ export const cashRecordsRouter = router({
       if (!doc.exists) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Bản ghi không tồn tại' });
       }
-      // Soft delete: mark as inactive instead of removing
       const data = doc.data()!;
+
+      await enforcePeriodLock(data.date, ctx.userData!.role === 'admin');
+
+      // Soft delete: mark as inactive instead of removing
       const updateData: Record<string, unknown> = {
         isActive: false,
         deletedAt: FieldValue.serverTimestamp(),
@@ -363,6 +379,9 @@ export const cashRecordsRouter = router({
       if (!doc.exists || doc.data()?.isActive === false) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Bản ghi không tồn tại' });
       }
+
+      await enforcePeriodLock(doc.data()!.date, ctx.userData!.role === 'admin');
+
       await docRef.update({
         [input.field]: input.value,
         updatedAt: FieldValue.serverTimestamp(),
@@ -381,6 +400,8 @@ export const cashRecordsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await enforcePeriodLock(input.date, ctx.userData!.role === 'admin');
+
       const db = getAdminDb();
       const snapshot = await db
         .collection('cash_records')

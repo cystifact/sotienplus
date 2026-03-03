@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserCheck, RefreshCw, KeyRound, Receipt } from 'lucide-react';
+import { Users, UserCheck, RefreshCw, KeyRound, Receipt, Lock } from 'lucide-react';
 import { useCurrentUserPermissions } from '@/hooks/use-current-user-permissions';
 
 const settingsLinks = [
@@ -44,12 +44,20 @@ const settingsLinks = [
     module: 'kiotviet',
     action: 'view',
   },
-];
+  {
+    title: 'Khóa sổ',
+    description: 'Khóa kỳ sổ, chặn chỉnh sửa bản ghi cũ',
+    href: '/settings/period-lock',
+    icon: Lock,
+    adminOnly: true,
+  },
+] as const;
 
 export default function SettingsPage() {
-  const { hasPermission, hasAnyModulePermission } = useCurrentUserPermissions();
+  const { hasPermission, hasAnyModulePermission, isAdmin } = useCurrentUserPermissions();
   const visibleLinks = settingsLinks.filter((link) => {
-    if (!link.module) return true;
+    if ('adminOnly' in link && link.adminOnly) return isAdmin;
+    if (!('module' in link) || !link.module) return true;
     if (link.module === 'kiotviet') return hasAnyModulePermission('kiotviet');
     return hasPermission(link.module, link.action!);
   });

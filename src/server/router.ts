@@ -5,6 +5,7 @@ import { customersRouter } from './routers/customers';
 import { cashRecordsRouter } from './routers/cashRecords';
 import { expenseTypesRouter } from './routers/expenseTypes';
 import { expenseRecordsRouter } from './routers/expenseRecords';
+import { settingsRouter } from './routers/settings';
 
 export const appRouter = router({
   users: usersRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   cashRecords: cashRecordsRouter,
   expenseTypes: expenseTypesRouter,
   expenseRecords: expenseRecordsRouter,
+  settings: settingsRouter,
 });
 
 export type AppRouter = typeof appRouter;
