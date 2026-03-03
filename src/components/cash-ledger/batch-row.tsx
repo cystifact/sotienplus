@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useMemo, useCallback, useState } from 'react';
+import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { X, AlertTriangle, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,11 @@ export const BatchRow = React.memo(function BatchRow({
 }: BatchRowProps) {
   const amountRef = useRef<HTMLInputElement>(null);
   const [showNotes, setShowNotes] = useState(!!row.notes);
+
+  // Auto-show notes field when notes get populated externally (e.g. auto-moved from customerName)
+  useEffect(() => {
+    if (row.notes) setShowNotes(true);
+  }, [row.notes]);
 
   const selectedCustomer = useMemo(() => {
     if (!row.customerId || !customers) return null;

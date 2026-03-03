@@ -308,6 +308,17 @@ export function useRecordForm({
       if (customerId && customers) {
         const customer = (customers as any[]).find((c: any) => c.id === customerId);
         if (customer) {
+          // Auto-move old manually-typed name to notes when selecting KiotViet customer in edit mode
+          if (isEditMode) {
+            const row = state.rows.find((r) => r.id === rowId);
+            if (row && !row.customerId && row.customerName.trim()) {
+              const oldName = row.customerName.trim();
+              const newNotes = row.notes.trim()
+                ? `${oldName} · ${row.notes.trim()}`
+                : oldName;
+              dispatch({ type: 'UPDATE_ROW', rowId, field: 'notes', value: newNotes });
+            }
+          }
           dispatch({
             type: 'SET_CUSTOMER',
             rowId,
@@ -326,7 +337,7 @@ export function useRecordForm({
         customerCode: '',
       });
     },
-    [customers]
+    [customers, isEditMode, state.rows]
   );
 
   const handleCollectorChange = useCallback(

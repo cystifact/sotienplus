@@ -108,7 +108,7 @@ async function fetchAllCustomers(config: KiotVietConfig, token: string) {
  */
 export const scheduledCustomerSync = onSchedule(
   {
-    schedule: '0 0 * * *',
+    schedule: '0 7-23 * * 1-6',
     timeZone: 'Asia/Ho_Chi_Minh',
     region: 'asia-southeast1',
     retryCount: 2,

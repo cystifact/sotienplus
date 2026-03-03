@@ -1,7 +1,10 @@
 import { getAdminDb } from '@/lib/firebase-admin';
 import { TRPCError } from '@trpc/server';
 
-// In-memory cache to reduce Firestore reads (one read per 30 seconds instead of per mutation)
+// In-memory cache to reduce Firestore reads (one read per 30 seconds instead of per mutation).
+// NOTE: This cache is per-process. In serverless/multi-container deployments (e.g. Vercel),
+// each instance has its own cache, so enforcement may lag up to 30s after a lock change.
+// This is an acceptable tradeoff — the backend is the security boundary, not real-time sync.
 let cachedLockDate: { value: string | null; expiresAt: number } | null = null;
 const LOCK_CACHE_TTL = 30 * 1000; // 30 seconds
 
