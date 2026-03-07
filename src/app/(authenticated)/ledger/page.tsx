@@ -1056,7 +1056,7 @@ export default function LedgerPage() {
           if (!open) setEditRecord(null);
         }}
         editRecord={editRecord}
-        defaultDate={dateRange.from || getTodayISO()}
+        defaultDate={getTodayISO()}
         canEdit={canEditRecord}
         canDelete={canDelete}
         onDelete={(record) => setDeleteRecord(record)}

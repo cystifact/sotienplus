@@ -5,10 +5,12 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
 
-  // Exclude settings subpages from precache - they'll be cached on-demand
+  // Exclude ALL JS/CSS from precache to prevent slow SW install on mobile.
+  // Every deploy changes build ID → SW re-downloads ALL precached files → 10s delay on mobile.
+  // JS/CSS are cached on-demand via StaleWhileRevalidate runtimeCaching rule below.
   buildExcludes: [
-    /chunks\/app\/\(authenticated\)\/settings\/(change-password|users|collectors|expense-types|kiotviet)\//,
-    /app-build-manifest\.json$/,
+    /\.js$/,
+    /\.css$/,
   ],
 
   runtimeCaching: [
@@ -18,7 +20,7 @@ const withPWA = require('next-pwa')({
       handler: 'NetworkFirst',
       options: {
         cacheName: 'pages',
-        networkTimeoutSeconds: 5,
+        networkTimeoutSeconds: 3,
         expiration: {
           maxEntries: 30,
           maxAgeSeconds: 24 * 60 * 60,
